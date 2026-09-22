@@ -1,0 +1,143 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: studioos-postgres
+    environment:
+      POSTGRES_USER: studio
+      POSTGRES_PASSWORD: studio
+      POSTGRES_DB: studioos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-pgvector.sql:/docker-entrypoint-initdb.d/01-pgvector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studio -d studioos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: studioos-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    # quay.io mirrors avoid Docker Hub pull denials for minio/*
+    image: quay.io/minio/minio:latest
+    container_name: studioos-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: studioos
+      MINIO_ROOT_PASSWORD: studioossecret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  minio-init:
+    image: quay.io/minio/mc:latest
+    container_name: studioos-minio-init
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      for i in 1 2 3 4 5 6 7 8 9 10; do
+        mc alias set local http://minio:9000 studioos studioossecret && break;
+        echo waiting for minio...;
+        sleep 2;
+      done;
+      mc mb --ignore-existing local/studioos;
+      mc anonymous set download local/studioos/proxies || true;
+      mc anonymous set download local/studioos/thumbnails || true;
+      echo Bucket ready;
+      "
+
+  # Workers use node:22 + apt ffmpeg so media-synth can emit real H.264/WAV in containers.
+  # Local `pnpm dev:all` still uses the host PATH (install ffmpeg optionally for richer previews).
+  generation-worker:
+    image: node:22
+    working_dir: /app
+    volumes:
+      - ../..:/app
+    command: >
+      sh -c "export DEBIAN_FRONTEND=noninteractive;
+      if ! command -v ffmpeg >/dev/null 2>&1; then
+        apt-get update -qq && apt-get install -y -qq --no-install-recommends ffmpeg >/dev/null;
+      fi;
+      corepack enable && pnpm --filter @studio-os/generation-worker start"
+    env_file:
+      - ../../.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://studio:studio@postgres:5432/studioos
+      S3_ENDPOINT: http://minio:9000
+    depends_on:
+      - redis
+      - postgres
+      - minio
+
+  media-worker:
+    image: node:22
+    working_dir: /app
+    volumes:
+      - ../..:/app
+    command: >
+      sh -c "export DEBIAN_FRONTEND=noninteractive;
+      if ! command -v ffmpeg >/dev/null 2>&1; then
+        apt-get update -qq && apt-get install -y -qq --no-install-recommends ffmpeg >/dev/null;
+      fi;
+      corepack enable && pnpm --filter @studio-os/media-worker start"
+    env_file:
+      - ../../.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://studio:studio@postgres:5432/studioos
+      S3_ENDPOINT: http://minio:9000
+    depends_on:
+      - redis
+      - postgres
+      - minio
+
+  render-worker:
+    image: node:22
+    working_dir: /app
+    volumes:
+      - ../..:/app
+    command: >
+      sh -c "export DEBIAN_FRONTEND=noninteractive;
+      if ! command -v ffmpeg >/dev/null 2>&1; then
+        apt-get update -qq && apt-get install -y -qq --no-install-recommends ffmpeg >/dev/null;
+      fi;
+      corepack enable && pnpm --filter @studio-os/render-worker start"
+    env_file:
+      - ../../.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://studio:studio@postgres:5432/studioos
+      S3_ENDPOINT: http://minio:9000
+    depends_on:
+      - redis
+      - postgres
+      - minio
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

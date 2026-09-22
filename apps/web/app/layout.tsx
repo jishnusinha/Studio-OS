@@ -1,0 +1,32 @@
+import type { Metadata } from 'next';
+import { Outfit, JetBrains_Mono } from 'next/font/google';
+import { Providers } from '@/components/Providers';
+import '@studio-os/ui/styles.css';
+import './globals.css';
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
+  display: 'swap',
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains',
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: 'StudioOS',
+  description: 'Creative Production Operating System',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className={`${outfit.variable} ${jetbrains.variable} dark`}>
+      <body className="studio-theme bg-cinema-bg text-cinema-text antialiased">
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}

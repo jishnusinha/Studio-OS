@@ -1,0 +1,2845 @@
+Yes. The product you are describing should be much bigger than a collection of AI-generation screens. I would design it as a **Creative Production Operating System**: one environment that takes a project from brief → research → script → visual development → casting/characters → shots → video generation → voice/SFX/music → editing → localization → delivery, while dynamically choosing external or custom models and tracking every cent of generation cost.
+
+I’ll use the working name **StudioOS** below. The architecture should be provider-agnostic from day one.
+
+## 1. What the benchmark products tell us
+
+I reviewed the current product/docs surfaces of the products you named. The strongest ideas worth absorbing are:
+
+| Benchmark      | Capabilities worth incorporating                                                                                                                                                                                                                                                                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Runway**     | Agent/tool/app separation; text/image/video generation; reference-driven generation; character/location consistency; keyframes; performance capture; prompt-based video editing; object/background replacement; relighting/restyling; multi-shot editing; frame-rate enhancement; upscaling; ProRes/PNG-sequence delivery; reusable workflows/apps. ([Runway Help][1])          |
+| **Higgsfield** | A particularly useful model for our Cinema experience: camera/lens/aperture controls, camera-motion presets, tempo, era, genre, emotion, color presets, reusable characters/locations, AI Director, project briefs, folders and collaborative production. Its Marketing Studio separately focuses on product/UGC/ad templates and brand/product ingestion. ([Higgsfield AI][2]) |
+| **CapCut**     | Serious browser/NLE features: multi-track editing, keyframes, masks, transforms, blend modes, curves/HSL/color correction, chroma key, AI cutout, speed curves, multicam, optical flow, proxy editing, auto-reframe, transcript/caption-assisted editing and collaboration. ([CapCut][3])                                                                                       |
+| **ElevenLabs** | TTS, STT, voice design/cloning, voice conversion, isolation, dubbing/localization, SFX, music, alignment, expressive speech and professional audio timelines. Current dubbing supports multiple speakers and 90+ languages, preserving speaker characteristics and background audio. ([ElevenLabs][4])                                                                          |
+| **Suno**       | The important inspiration is no longer simply “prompt → song”; Studio is effectively a generative DAW: multitrack generation, stems, MIDI, piano roll, automation, effects, plugin/sound design, synths, section regeneration, arrangement, uploads and multimodal references. ([Suno Help][5])                                                                                 |
+| **Leonardo**   | Strong image ideation and editing: multi-reference image generation, natural-language edits, realtime canvas, in/outpainting, granular image guidance including pose/depth/sketch/edge/content/style, LoRA/Element training, Flow State ideation, professional upscaling and even image-to-3D. ([Intercom][6])                                                                  |
+
+One product-design conclusion follows from this: **Cinema and advertising should not merely be filters applied to the same UI.** They are different production workflows.
+
+---
+
+# 2. StudioOS product structure
+
+I would make the primary navigation roughly:
+
+```text
+STUDIO OS
+│
+├── Home
+├── Projects
+│
+├── CREATE
+│   ├── Cinema Studio
+│   └── Commercial Studio
+│
+├── CREATIVE LABS
+│   ├── Story Room
+│   ├── Image Lab
+│   ├── Video Lab
+│   ├── Voice & Audio Lab
+│   └── Music Studio
+│
+├── POST
+│   ├── Video Editor
+│   ├── Audio Mixer
+│   ├── Color
+│   └── Delivery
+│
+├── INTELLIGENCE
+│   ├── Creative Agent
+│   ├── Knowledge / RAG
+│   ├── Characters
+│   ├── Worlds & Locations
+│   ├── Brand DNA
+│   └── Automations
+│
+├── INFRASTRUCTURE
+│   ├── Assets / Cloud Drive
+│   ├── Model Hub
+│   ├── Training / Fine-tunes
+│   ├── Workflows
+│   └── API / Webhooks
+│
+└── ADMIN
+    ├── Usage
+    ├── Billing
+    ├── Budgets
+    ├── Team
+    ├── Rights & Provenance
+    └── Settings
+```
+
+The key is that **everything belongs to a Project**, not individual disconnected tools.
+
+---
+
+# 3. The underlying concept: Project Graph
+
+This may become the feature that distinguishes StudioOS from virtually every generator.
+
+A project isn't a directory containing random generations. It is a graph:
+
+```text
+Project
+   ↓
+Story / Campaign Brief
+   ↓
+Canon / Brand DNA
+   ↓
+Characters ─ Locations ─ Products ─ Styles
+   ↓
+Sequences
+   ↓
+Scenes
+   ↓
+Shots
+   ↓
+Takes
+   ↓
+Assets / Generations
+   ↓
+Timeline
+   ↓
+Master
+   ↓
+Deliverables
+```
+
+Every generation remembers:
+
+```text
+model
+model version
+provider
+prompt
+negative prompt
+seed
+references
+character
+location
+product
+camera
+lens
+lighting
+generation parameters
+parents
+children
+timeline usage
+cost
+rights metadata
+creation timestamp
+creator
+approval state
+```
+
+Therefore a user can click a finished shot six months later and discover exactly how it was created.
+
+I would call this **Creative Lineage**.
+
+---
+
+# 4. Cinema Studio
+
+Cinema Studio is optimized for narrative continuity rather than one-off spectacular clips.
+
+## Development
+
+The user can start from:
+
+* One-line idea
+* Treatment
+* Screenplay
+* Novel
+* PDF
+* DOCX
+* TXT
+* EPUB
+* Final Draft/FDX
+* Fountain screenplay
+* Images
+* Existing movie/video
+* Storyboard
+* Audio
+* URL/reference material
+
+The system builds a structured **Story Bible**.
+
+It extracts:
+
+```text
+Premise
+Genre
+Tone
+Themes
+Characters
+Character relationships
+Character arcs
+Locations
+Objects / props
+Timeline
+World rules
+Visual language
+Dialogue style
+Costumes
+Continuity constraints
+```
+
+The creator can lock any fact.
+
+For example:
+
+> Sarah's jacket = red leather from scenes 14–22.
+
+Once locked, the AI cannot casually change it.
+
+---
+
+# 5. AI Story Room
+
+Think Final Draft + Notion + an AI writers' room.
+
+Views:
+
+```text
+Idea
+Synopsis
+Treatment
+Beat Sheet
+Acts
+Sequences
+Scenes
+Screenplay
+Characters
+World Bible
+Story Map
+Continuity
+Versions
+```
+
+Writing modes:
+
+* brainstorm
+* develop premise
+* character construction
+* character arc
+* dialogue
+* scene writing
+* rewrite
+* shortening
+* expansion
+* genre transformation
+* pacing analysis
+* alternative scene
+* screenplay formatting
+* shot breakdown
+* production breakdown
+
+But the important addition is **persistent project intelligence**.
+
+Instead of constantly stuffing the screenplay into an LLM context window:
+
+```text
+Script
+  ↓
+structured extraction
+  ↓
+RAG
+  ↓
+story graph
+  ↓
+scene-specific context
+  ↓
+LLM
+```
+
+That reduces tokens and improves continuity.
+
+---
+
+# 6. Cinema AI production crew
+
+The multi-agent system should not be a gimmicky swarm where 20 agents endlessly talk to each other.
+
+Use specialized agents coordinated by an orchestrator:
+
+| Agent                 | Responsibility                      |
+| --------------------- | ----------------------------------- |
+| Showrunner            | Overall creative intent             |
+| Screenwriter          | Story and dialogue                  |
+| Script Editor         | Story structure/pacing              |
+| Continuity Supervisor | Consistency                         |
+| Director              | Blocking/performance/shot intention |
+| DP                    | Camera/lens/light/movement          |
+| Production Designer   | Set/art direction                   |
+| Costume Designer      | Wardrobe continuity                 |
+| Casting Agent         | Character appearance/voice          |
+| Storyboard Artist     | Shot visualization                  |
+| VFX Supervisor        | Effects planning                    |
+| Editor                | Coverage/edit suggestions           |
+| Sound Designer        | SFX/Foley/ambience                  |
+| Composer              | Score                               |
+| Colorist              | Look/grade                          |
+| Localization Director | Dubs/translations                   |
+| Production Manager    | Tasks/render queue                  |
+| Cost Controller       | API-cost optimization               |
+
+The user remains the director.
+
+Agents propose; locked creative decisions stay locked.
+
+---
+
+# 7. Director's Board
+
+This would be a major screen.
+
+```text
+SCENE 17 — INT. APARTMENT — NIGHT
+
+Story objective:
+Sarah discovers the tape.
+
+Emotion:
+Suspicion → fear → realization
+
+Duration target:
+01:48
+
+---------------------------------------------------------
+SHOT   FRAME       CAMERA       DURATION     STATUS
+17A    storyboard  35mm dolly    08s          Approved
+17B    storyboard  85mm CU       05s          Gen v3
+17C    storyboard  handheld      11s          Needs fix
+17D    storyboard  macro         04s          Approved
+---------------------------------------------------------
+```
+
+Users can reorder cards like a storyboard.
+
+Switch views:
+
+* Cards
+* Storyboard
+* Shot list
+* Floor plan
+* Timeline
+* Production status
+* Cost
+
+---
+
+# 8. Shot DNA
+
+Every shot gets a structured **Shot DNA** rather than relying exclusively on prose prompts.
+
+```yaml
+shot:
+  size: medium_close_up
+  angle: eye_level
+
+camera:
+  format: 35mm
+  lens: 50mm
+  aperture: f2
+  motion:
+    type: dolly_in
+    intensity: subtle
+
+lighting:
+  key: soft tungsten
+  fill: minimal
+  contrast: high
+  motivated_by: bedside lamp
+
+subject:
+  character: Sarah_v4
+  costume: red_jacket_scene14_22
+  emotion: anxious
+
+environment:
+  location: apartment_v7
+  time: night
+
+look:
+  palette: teal_amber_muted
+  grain: 35mm_medium
+  halation: moderate
+```
+
+That lets providers change without destroying intent.
+
+Higgsfield's newest Cinema Studio makes camera, lens, tempo, genre, era, color, emotion and movement explicit controls rather than forcing everything through prompting; this is exactly the direction I would take. ([Higgsfield AI][2])
+
+---
+
+# 9. Video Lab — “Runway/Higgsfield on steroids”
+
+Top-level modes:
+
+```text
+Text → Video
+Image → Video
+Video → Video
+Frames → Video
+Storyboard → Video
+Performance → Character
+Reference → Video
+Extend Shot
+Edit Existing Video
+Insert / Remove Object
+Replace Character
+Replace Product
+Relight
+Restyle
+Change Weather
+Change Time of Day
+Change Camera Motion
+Lip Sync
+Motion Transfer
+Video Upscale
+FPS Enhancement
+```
+
+Advanced panel:
+
+```text
+Model
+Resolution
+Aspect ratio
+Duration
+FPS
+Seed
+
+Camera
+ ├ Camera body/style
+ ├ Sensor/film format
+ ├ Lens
+ ├ Focal length
+ ├ Aperture
+ ├ Focus
+ ├ Camera position
+ ├ Camera motion
+ ├ Motion intensity
+ └ Handheld stabilization
+
+Scene
+ ├ Character references
+ ├ Environment reference
+ ├ Product reference
+ ├ Style reference
+ ├ Start frame
+ ├ End frame
+ ├ Depth
+ ├ Pose
+ ├ Masks
+ └ Control maps
+
+Direction
+ ├ Action
+ ├ Blocking
+ ├ Expression
+ ├ Emotion
+ ├ Tempo
+ └ Choreography
+
+Look
+ ├ Genre
+ ├ Era
+ ├ Lighting
+ ├ LUT / palette
+ ├ Grain
+ ├ Halation
+ └ Atmospheric FX
+```
+
+Runway currently provides useful analogues including reference-based generation, Act-Two performance transfer, Aleph/Edit Studio video transformation, and professional ProRes/PNG sequence outputs. ([Runway Help][7])
+
+---
+
+# 10. Model Tournament
+
+One of the most valuable StudioOS features.
+
+Select one shot and say:
+
+> Compare this on Kling, Runway, Veo, Higgsfield and WAN.
+
+Results appear together:
+
+```text
+                   QUALITY    COST     TIME
+Runway              ★★★★      $x       32s
+Kling               ★★★★      $x       46s
+Veo                  ★★★★★     $x       58s
+WAN                  ★★★       $x       41s
+```
+
+However, I would **not** create a universal vendor leaderboard.
+
+Instead, allow the creator to:
+
+* compare rendered outputs visually;
+* mark preferred takes;
+* save preferences per project;
+* remember which model works well for particular shot types.
+
+For example:
+
+```text
+Project preference
+
+Dialogue CU     → Model A
+Fast action     → Model B
+Product macro   → Model C
+Establishing    → Model D
+```
+
+The router gradually learns this.
+
+---
+
+# 11. Continuity Engine
+
+This is where your platform could move beyond most AI-video products.
+
+For every candidate shot, inspect:
+
+```text
+Character identity
+Hair
+Wardrobe
+Age
+Makeup
+Props
+Set
+Furniture
+Lighting direction
+Time of day
+Weather
+Screen direction
+Eyeline
+Camera axis
+Color
+Product geometry
+Logos/text
+Previous action state
+```
+
+Then show:
+
+```text
+Continuity score: 93%
+
+⚠ Sarah's necklace is missing.
+⚠ Coffee mug switched hands.
+✓ Costume consistent.
+✓ Location consistent.
+✓ Lighting direction consistent.
+```
+
+User can choose:
+
+> Fix necklace only.
+
+Instead of regenerating the entire scene.
+
+Call this **Selective Regeneration**.
+
+---
+
+# 12. Long-form cinema architecture
+
+Do **not** approach a 90-minute film as one enormous video generation problem.
+
+The production hierarchy should be:
+
+```text
+Film
+ → Sequence
+   → Scene
+     → Shot
+       → Take
+```
+
+Continuity is maintained by persistent references + Project Graph + RAG.
+
+A typical 5-second shot can come from completely different models while still sharing:
+
+```text
+Character DNA
+Wardrobe DNA
+Location DNA
+Shot DNA
+Color DNA
+Story state
+```
+
+This makes long-form AI cinema much more achievable.
+
+---
+
+# 13. Commercial Studio should be separate
+
+The advertising workflow begins with a **brand/product**, not a screenplay.
+
+This is where the Higgsfield Marketing Studio approach is particularly instructive: it supports product-driven and UGC-oriented creative workflows, including product uploads/site-derived creative and a large template library. ([Higgsfield AI][8])
+
+Commercial Studio should start with:
+
+```text
+CREATE CAMPAIGN
+
+[ Paste website ]
+[ Upload product ]
+[ Upload brand kit ]
+[ Upload campaign brief ]
+[ Describe campaign ]
+```
+
+Then ingest:
+
+```text
+Logo
+Brand colors
+Fonts
+Product images
+Packshot
+Product properties
+Brand voice
+Approved claims
+Forbidden claims
+Audience
+Competitors
+CTA
+Existing ads
+Legal text
+Music preference
+Talent style
+```
+
+This becomes **Brand DNA**.
+
+---
+
+# 14. Commercial workflows
+
+Major templates could include:
+
+```text
+Product Hero
+Luxury Product
+UGC Talking Head
+UGC Faceless
+Testimonial
+Problem/Solution
+Before/After
+Product Demo
+Lifestyle
+Unboxing
+Explainer
+App Demo
+Motion Graphics
+Mixed Media
+Beauty/Fashion
+Food
+Automotive
+E-commerce
+Social Hook
+Cinematic Brand Film
+Performance Ad
+```
+
+But templates contain editable **creative grammar**, rather than fixed videos.
+
+Example:
+
+```text
+0–2 sec    HOOK
+2–5 sec    PROBLEM
+5–9 sec    PRODUCT
+9–13 sec   BENEFIT
+13–16 sec  PROOF
+16–18 sec  CTA
+```
+
+User can ask:
+
+> Generate 40 variants while keeping the middle product demonstration identical.
+
+StudioOS only regenerates Hook and CTA nodes.
+
+Huge cost reduction.
+
+---
+
+# 15. Commercial Variant Factory
+
+One master:
+
+```text
+MASTER AD
+```
+
+can branch into:
+
+```text
+Instagram 9:16
+TikTok 9:16
+YouTube 16:9
+YouTube bumper 6 sec
+Meta 1:1
+Meta 4:5
+Amazon product video
+Website hero
+15 sec
+30 sec
+60 sec
+```
+
+And:
+
+```text
+US English
+UK English
+Hindi
+Bengali
+Spanish
+German
+Japanese
+...
+```
+
+with corresponding:
+
+* dubbing;
+* captions;
+* text layout;
+* localized CTA;
+* music timing;
+* product/legal claims.
+
+---
+
+# 16. Image Lab — Leonardo-class
+
+I would split it into four experiences.
+
+### Generate
+
+Text, references and structured controls.
+
+### Canvas
+
+Infinite/realtime canvas:
+
+```text
+Sketch
+Paint
+Erase
+Mask
+Generate
+Inpaint
+Outpaint
+Move object
+Replace object
+Resize
+Relight
+Restyle
+Remove background
+Upscale
+```
+
+Leonardo currently combines natural-language editing, multiple image references, granular image guidance and a realtime canvas/Flow State workflow; its Elements system also supports training Style/Object/Character concepts. ([Intercom][6])
+
+### Control
+
+Offer:
+
+```text
+Pose
+Depth
+Edges
+Line art
+Sketch
+Composition
+Character
+Object
+Style
+Pattern
+Text
+Normals
+Reference strength
+```
+
+### Train
+
+```text
+Character LoRA
+Product LoRA
+Style LoRA
+Location LoRA
+Object LoRA
+Embedding
+Adapter
+```
+
+Training datasets become first-class assets.
+
+---
+
+# 17. Character system
+
+A reusable **Character Asset** should contain much more than some uploaded photos.
+
+```text
+Character: SARAH
+
+IDENTITY
+reference images
+face embedding
+trained adapter / LoRA
+approved generations
+
+BODY
+height
+build
+skin
+hair
+eyes
+
+WARDROBE
+costume 01
+costume 02
+...
+
+VOICE
+voice profile
+language
+accent
+pronunciation dictionary
+
+ACTING
+baseline personality
+gesture style
+emotional range
+
+STORY
+bio
+relationships
+scene history
+
+RIGHTS
+performer release
+voice consent
+likeness consent
+usage restrictions
+```
+
+Higgsfield's reusable identity/character approach and Leonardo's trainable character/object/style adapters reinforce this abstraction. ([Higgsfield AI][9])
+
+---
+
+# 18. Advanced web video editor — CapCut plus professional NLE ideas
+
+This must be a **real editing system**, not a concatenator.
+
+Editing primitives:
+
+```text
+Selection
+Blade
+Ripple edit
+Roll edit
+Slip
+Slide
+Trim
+Insert
+Overwrite
+Replace
+Lift
+Extract
+Match frame
+Compound clip
+Nested sequence
+Adjustment clip
+```
+
+Timeline:
+
+* unlimited conceptual tracks;
+* video/audio/title/effect tracks;
+* track groups;
+* magnetic snapping;
+* markers;
+* range selections;
+* version history;
+* linked/unlinked A/V;
+* nested timelines;
+* compound clips.
+
+CapCut already demonstrates that browsers can expose advanced features including keyframes, masks, HSL/curves, chroma key, multicam, optical-flow workflows, proxy editing and AI-driven reframing. ([CapCut][3])
+
+StudioOS should go further.
+
+---
+
+# 19. “Edit to Generate”
+
+This could be a signature interaction.
+
+Timeline:
+
+```text
+SHOT A │       GAP       │ SHOT C
+```
+
+Right click:
+
+> Generate missing shot.
+
+The system automatically knows:
+
+* preceding frame;
+* following frame;
+* characters;
+* scene;
+* screenplay;
+* duration of gap;
+* camera language;
+* grade;
+* project model preferences.
+
+Or select a clip:
+
+> Replace this 1.8-second section.
+
+Only that section is regenerated.
+
+---
+
+# 20. AI-assisted editing
+
+Commands like:
+
+> Remove pauses longer than 500ms.
+
+> Cut this interview to 45 seconds without changing meaning.
+
+> Insert B-roll whenever she discusses manufacturing.
+
+> Reframe vertically, keeping the two speakers visible.
+
+> Find my strongest reaction takes.
+
+> Replace the product shot at 00:13:21.
+
+> Make a 15-second version from this 60-second ad.
+
+Actions should generate **editable timeline operations**, not destructive flattened output.
+
+---
+
+# 21. Professional video editing features
+
+Eventually include:
+
+```text
+Keyframe graph editor
+Bezier animation
+Motion tracking
+Planar tracking
+Masks
+Rotoscope
+AI cutout
+Chroma key
+Blend modes
+Motion blur
+Speed ramp
+Optical flow
+Stabilization
+Transform
+Crop
+Lens correction
+Noise reduction
+Sharpen
+Deflicker
+Titles
+Motion graphics
+Captions
+Safe areas
+Multicam
+Proxy workflow
+Relinking
+Offline/online media
+```
+
+Color:
+
+```text
+Exposure
+White balance
+Contrast
+Saturation
+Curves
+HSL
+Wheels
+Qualifier
+Power windows
+Tracking
+LUT
+Scopes
+False color
+Shot matching
+```
+
+---
+
+# 22. Audio Lab — ElevenLabs-class
+
+Do not make audio a side panel under video.
+
+Create a dedicated environment:
+
+```text
+Voice
+Dialogue
+ADR
+Dubbing
+Speech-to-Speech
+Transcription
+Voice Isolation
+Noise Cleanup
+SFX
+Foley
+Ambience
+Mix
+Master
+```
+
+ElevenLabs currently spans TTS/STT, voice cloning/design, voice changer, isolation, dubbing, music and SFX, so it is a good capability benchmark. ([ElevenLabs][4])
+
+Voice controls:
+
+```text
+Voice
+Model
+Language
+Accent
+Age
+Style
+Emotion
+Stability
+Similarity
+Speed
+Pitch
+Energy
+Delivery
+Pause
+Pronunciation
+Character intention
+```
+
+At the script level:
+
+```text
+Sarah:
+[whispering, frightened]
+Don't open it.
+
+David:
+[breathless, impatient]
+We don't have a choice.
+```
+
+---
+
+# 23. Voice cloning must have rights controls
+
+Do not permit arbitrary cloning as a normal upload operation.
+
+Voice assets should carry:
+
+```text
+owner
+consent evidence
+allowed projects
+commercial permission
+expiration
+jurisdiction
+prohibited usage
+```
+
+The same should apply to faces/likenesses.
+
+This is both a responsible product decision and enterprise requirement.
+
+---
+
+# 24. Dialogue editor
+
+Similar to a word processor connected to audio.
+
+```text
+SARAH
+I don't think we should go.
+
+DAVID
+Why?
+
+SARAH
+Because I've been here before.
+```
+
+Change:
+
+> “I've been here before.”
+
+to:
+
+> “I've seen this place before.”
+
+Regenerate only that phrase while preserving as much timing, voice and surrounding performance as possible.
+
+---
+
+# 25. Dubbing & localization
+
+StudioOS should manage:
+
+```text
+Source dialogue
+Transcription
+Speaker identification
+Translation
+Glossary
+Character voice
+Dub
+Lip sync
+QC
+Subtitle
+Localized titles
+Export
+```
+
+ElevenLabs currently offers automatic multi-speaker dubbing across 90+ languages while preserving speaker characteristics and background audio, which establishes a useful baseline for this layer. ([ElevenLabs][10])
+
+Every translation should understand the scene's context rather than translating isolated subtitles.
+
+---
+
+# 26. SFX and Foley
+
+Prompt based:
+
+> Heavy leather boots running through a wet concrete hallway, distant industrial fan, cinematic, no music.
+
+Controls:
+
+```text
+duration
+loop
+intensity
+perspective
+distance
+environment
+variation
+sync point
+```
+
+ElevenLabs' current SFX generation supports explicit duration and looping, so these concepts can map to APIs that expose them. ([ElevenLabs][11])
+
+---
+
+# 27. Music Studio — this should be a full generative DAW
+
+This is another area where I would not stop at “make song.”
+
+Suno Studio is now explicitly a web-based generative audio workstation with multitrack work, generated stems, editing and arrangement; its newer Studio functionality incorporates MIDI, automation, effects and synthesis. ([Suno Help][5])
+
+Your version should support two entry paths.
+
+### Song Mode
+
+For creators/commercials:
+
+```text
+Prompt
+Lyrics
+Genre
+Mood
+Voice
+Structure
+Reference tracks
+BPM
+Key
+Duration
+```
+
+### Score-to-Picture Mode
+
+For cinema:
+
+```text
+Film timeline
+Scene markers
+Hit points
+Emotional curve
+Tempo map
+Character themes
+Instrumentation
+Dynamic intensity
+```
+
+Example:
+
+```text
+00:00     restrained
+00:18     introduce cello motif
+00:42     tension rise
+01:04     silence
+01:07     reveal
+01:09     orchestral hit
+01:21     resolve
+```
+
+That is considerably more useful for filmmaking than generic song generation.
+
+---
+
+# 28. Music Pro Editor
+
+Timeline:
+
+```text
+Vocals
+Drums
+Bass
+Guitar
+Keys
+Strings
+Synth
+FX
+Generated stem
+Reference
+```
+
+Include:
+
+* stem separation;
+* regenerate selection;
+* extend;
+* crop;
+* replace section;
+* fade;
+* remix;
+* cover/reinterpret;
+* remaster;
+* add vocals;
+* remove vocals;
+* add instrumental;
+* audio → MIDI;
+* MIDI → generated performance;
+* piano roll;
+* quantize;
+* velocity;
+* pitch bend;
+* modulation;
+* automation;
+* tempo automation;
+* time signatures.
+
+Suno's current Studio documentation includes external MIDI/MIDI Learn, parameter automation and its wavetable synth, while its stem tooling supports increasingly granular stem extraction. ([Suno Help][12])
+
+---
+
+# 29. Effects rack
+
+Built-in:
+
+```text
+EQ
+Compressor
+Limiter
+Gate
+De-esser
+Reverb
+Convolution
+Delay
+Distortion
+Chorus
+Flanger
+Saturation
+Stereo imager
+Pitch
+Time stretch
+```
+
+Automation lanes.
+
+Eventually support a server-side/plugin abstraction, although arbitrary native desktop VST execution inside a multi-tenant browser service needs isolation.
+
+---
+
+# 30. Model-agnostic music backend
+
+Do not architect StudioOS around Suno itself.
+
+Use the **Suno interaction model as product inspiration**, but define:
+
+```text
+MusicProvider
+.generate()
+.extend()
+.regenerateRegion()
+.separateStems()
+.generateStem()
+.remaster()
+```
+
+Then plug in whatever APIs are contractually/publicly available.
+
+ElevenLabs already exposes an AI-music capability featuring text-driven composition, section editing, reference audio and inpainting-style workflows, making it one reasonable API-backed music provider. ([ElevenLabs][13])
+
+If official/partner access to other music engines is obtained later, it is simply another adapter.
+
+---
+
+# 31. Cloud asset system
+
+This should feel like Google Drive + Frame.io + media asset management.
+
+Structure:
+
+```text
+Organization
+└── Workspace
+    └── Project
+        ├── 01 Development
+        ├── 02 Scripts
+        ├── 03 Characters
+        ├── 04 Locations
+        ├── 05 Products
+        ├── 06 References
+        ├── 07 Storyboards
+        ├── 08 Production
+        │   └── Scene 001
+        │       └── Shot 001
+        │           ├── Takes
+        │           └── Finals
+        ├── 09 Audio
+        ├── 10 Music
+        ├── 11 Timelines
+        └── 12 Exports
+```
+
+But actual files should be object records. Folders are just one organizational view.
+
+Also offer:
+
+```text
+Smart collections
+Tags
+Search
+Favorites
+Ratings
+Versions
+Approvals
+Comments
+Annotations
+Usage
+Lineage
+Duplicates
+Rights
+Archive
+```
+
+---
+
+# 32. Multimodal search
+
+A user should be able to type:
+
+> Find all shots where Sarah wears the red jacket in a kitchen.
+
+Or:
+
+> Find rain shots with slow camera movement.
+
+Or:
+
+> Show the music generated for scene 23.
+
+Or:
+
+> Find every ad where product packaging is visible for more than 3 seconds.
+
+That requires embeddings + structured metadata + scene understanding.
+
+---
+
+# 33. RAG system
+
+Use hierarchical RAG.
+
+```text
+Organization Knowledge
+        ↓
+Brand / Franchise Knowledge
+        ↓
+Project Knowledge
+        ↓
+Story / Campaign
+        ↓
+Sequence
+        ↓
+Scene
+        ↓
+Shot
+```
+
+This prevents irrelevant material from entering every LLM call.
+
+Ingest:
+
+```text
+PDF
+DOCX
+TXT
+EPUB
+HTML
+URLs
+Images
+Video
+Audio
+Scripts
+Spreadsheets
+Brand guides
+Product manuals
+Research
+Previous campaigns
+```
+
+For video:
+
+```text
+ASR transcript
+speaker diarization
+scene segmentation
+shot boundaries
+keyframes
+visual embeddings
+objects
+faces/characters
+time-coded semantic index
+```
+
+For documents:
+
+```text
+structural parse
+chunks
+tables
+captions
+metadata
+embeddings
+entity extraction
+```
+
+---
+
+# 34. Citation-aware creative AI
+
+Whenever the system is using uploaded source material, its answer can point back to:
+
+```text
+Brand_Guidelines.pdf → p.18
+Interview.mp4 → 00:23:14
+Script_v8.fdx → Scene 42
+Research.docx → "Target audience"
+```
+
+This matters tremendously for commercial and enterprise projects.
+
+---
+
+# 35. Model Hub — critical architecture
+
+This should be one of the most carefully engineered parts.
+
+Users see:
+
+```text
+MODEL HUB
+
+Text
+Image
+Video
+Voice
+STT
+Music
+Embeddings
+Upscale
+Lip Sync
+3D
+Custom
+```
+
+Each model is represented by a provider-independent capability specification.
+
+Example:
+
+```json
+{
+  "id": "video-provider-x-v3",
+  "provider": "provider_x",
+  "modalities": ["image", "text", "video"],
+  "output": ["video"],
+  "capabilities": {
+    "text_to_video": true,
+    "image_to_video": true,
+    "first_frame": true,
+    "last_frame": true,
+    "references": 3,
+    "audio": false
+  }
+}
+```
+
+The UI renders controls dynamically from the schema.
+
+---
+
+# 36. Dynamic model addition
+
+Admin flow:
+
+```text
+ADD MODEL
+
+Provider
+Model ID
+API endpoint
+Authentication
+Request schema
+Response schema
+Webhook/polling
+Capabilities
+Input types
+Output types
+Parameters
+Limits
+Pricing
+Timeout
+Retries
+Region
+Moderation
+License
+Deprecation date
+```
+
+Then:
+
+**Test Connection**
+
+**Run Test Generation**
+
+**Publish to Workspace**
+
+No redeployment of the primary application should be required to introduce a normally compatible provider.
+
+This is particularly important because model lifecycles move quickly; for example Google's official Gemini pricing/deprecation information already requires developers to follow model migrations rather than assuming a permanent endpoint. ([Google AI for Developers][14])
+
+---
+
+# 37. Provider adapter architecture
+
+Conceptually:
+
+```text
+                 StudioOS Capability API
+                          │
+              ┌───────────┴───────────┐
+              │    Model Router       │
+              └───────────┬───────────┘
+                          │
+ ┌────────┬────────┬──────┼──────┬────────┬──────────┐
+ OpenAI   xAI    Google  Runway ElevenLabs Higgsfield
+                                        │
+                       ┌────────────────┴──────┐
+                       fal    Replicate   Custom
+```
+
+Interfaces such as:
+
+```typescript
+interface VideoProvider {
+  generate(request): Promise<Job>;
+  getStatus(job): Promise<JobStatus>;
+  cancel(job): Promise<void>;
+}
+
+interface ImageProvider {}
+interface VoiceProvider {}
+interface MusicProvider {}
+interface LLMProvider {}
+```
+
+StudioOS talks to capabilities.
+
+Provider adapters deal with vendor differences.
+
+---
+
+# 38. Default provider strategy
+
+I would ship the codebase already prepared for several families rather than hardcoding one:
+
+| Capability      | Default architecture                               |
+| --------------- | -------------------------------------------------- |
+| Story/reasoning | OpenAI + Anthropic/xAI/Gemini adapters             |
+| Fast text work  | cost-efficient small/fast model                    |
+| Image           | OpenAI/Gemini/Leonardo/Higgsfield/fal adapters     |
+| Video           | Runway/Higgsfield/Google/xAI/fal/Replicate         |
+| Voice           | ElevenLabs as strong primary option + alternatives |
+| STT             | multiple providers                                 |
+| Dubbing         | ElevenLabs + alternatives                          |
+| Music           | music-capable APIs; Eleven Music initially viable  |
+| Open models     | fal/Replicate/self-hosted workers                  |
+| Embeddings      | cheap dedicated embedding models                   |
+| Custom          | OpenAI-compatible endpoint + arbitrary adapter     |
+
+OpenAI's current API lineup itself now exposes a cost ladder—GPT-5.6 Luna for high-volume/cost-sensitive work, Terra as a middle tier, and Sol for more complex tasks—exactly the sort of separation the router should exploit. Current documented rates are $0.20/$1.20, $2/$12 and $4/$20 per million input/output tokens respectively. ([OpenAI Platform][15])
+
+Do **not** use the expensive reasoning model for metadata tagging or filename generation.
+
+---
+
+# 39. Model Router
+
+Every request includes:
+
+```text
+capability
+quality
+budget
+latency
+privacy
+project preference
+resolution
+duration
+region
+```
+
+For example:
+
+```text
+Quality mode:
+○ Economy
+● Balanced
+○ Quality
+○ Maximum
+○ Manual
+```
+
+Router considers:
+
+```text
+Capability fit
+Expected cost
+Expected quality
+Latency
+Availability
+Provider quota
+Model limits
+Failure rate
+User preference
+Project history
+```
+
+---
+
+# 40. Previsualize before expensive generation
+
+A major cost-saving workflow:
+
+```text
+Story
+ ↓
+cheap storyboard images
+ ↓
+animatic
+ ↓
+approve framing
+ ↓
+low-resolution 2-second motion test
+ ↓
+approve motion
+ ↓
+full video
+ ↓
+upscale final selected take only
+```
+
+Don't generate 10 × 1080p videos just to discover the camera angle is wrong.
+
+This one architectural decision can drastically change gross margin.
+
+---
+
+# 41. Fine-tuning Center
+
+Model Hub gets a separate **Train** tab.
+
+Training types:
+
+```text
+LLM fine-tune
+LoRA
+Image character
+Image product
+Image style
+Video adapter
+Voice clone
+Music persona/custom model
+Embedding model
+Self-hosted model
+```
+
+Each training project includes:
+
+```text
+Dataset
+Dataset version
+Consent
+Rights
+Preprocessing
+Training config
+Validation set
+Evaluation
+Cost estimate
+Training job
+Metrics
+Versions
+Deployment
+Rollback
+```
+
+Where the underlying provider supports fine-tuning, call its API.
+
+Where it does not, disable that option.
+
+Never fake a universal “fine-tune” button.
+
+---
+
+# 42. Bring-your-own-model
+
+Support three levels:
+
+### API model
+
+```text
+REST endpoint
+API key
+schema
+```
+
+### OpenAI-compatible model
+
+Simplest integration:
+
+```text
+Base URL
+Model ID
+API key
+```
+
+### Self-hosted
+
+```text
+Docker image
+Weights
+GPU requirement
+Inference handler
+Autoscaling policy
+```
+
+Useful deployment targets:
+
+```text
+Kubernetes
+RunPod
+Modal
+AWS
+GCP
+Azure
+on-prem GPU
+```
+
+---
+
+# 43. Usage and billing: make this a first-class subsystem
+
+Do **not** calculate bills retrospectively from random application logs.
+
+Every AI operation generates an immutable **UsageEvent**.
+
+```json
+{
+  "job_id": "...",
+  "workspace_id": "...",
+  "project_id": "...",
+  "user_id": "...",
+
+  "provider": "provider",
+  "model": "model",
+  "model_version": "...",
+
+  "input_tokens": 12345,
+  "cached_input_tokens": 10000,
+  "output_tokens": 1200,
+
+  "input_characters": 0,
+  "input_audio_seconds": 0,
+  "output_audio_seconds": 0,
+
+  "input_video_seconds": 0,
+  "output_video_seconds": 8,
+
+  "resolution": "1080p",
+  "images": 0,
+
+  "provider_cost_usd": 0.00,
+  "customer_cost_usd": 0.00,
+
+  "pricing_snapshot_id": "...",
+  "status": "completed"
+}
+```
+
+---
+
+# 44. Price Registry
+
+Never put vendor pricing into random conditional statements.
+
+Create:
+
+```text
+PricingRule
+```
+
+with:
+
+```text
+provider
+model
+endpoint
+unit
+rate
+currency
+minimum
+resolution
+quality
+context tier
+priority tier
+region
+valid_from
+valid_until
+official_source
+retrieved_at
+approval_status
+```
+
+Example units:
+
+```text
+input token
+cached token
+output token
+image
+megapixel
+second
+frame
+audio minute
+character
+generation
+GPU second
+storage GB-month
+egress GB
+```
+
+Prices become historical records.
+
+Therefore an invoice generated in December can still explain the correct September cost.
+
+---
+
+# 45. Internal billing formula
+
+Base:
+
+```text
+Estimated Provider Cost
+    = Σ(quantity × effective unit rate)
+```
+
+Then:
+
+```text
+Internal Cost
+    = provider API cost
+    + own GPU cost
+    + storage
+    + transcoding
+    + egress
+```
+
+Finally:
+
+```text
+Billable Cost
+    = internal cost
+    + platform margin
+    - plan allowances
+    - promotional credit
+```
+
+You can support either:
+
+```text
+credits
+actual USD
+subscription + credits
+subscription + PAYG
+enterprise contract
+```
+
+without altering generation services.
+
+---
+
+# 46. Estimate before running, reconcile afterward
+
+Before generation:
+
+```text
+Estimated cost
+$0.62–$0.78
+
+Run?
+```
+
+After:
+
+```text
+Actual provider cost     $0.68
+Platform processing      $0.03
+Charged usage            $0.89
+```
+
+Users will appreciate this enormously once they are generating hundreds of videos.
+
+---
+
+# 47. Capture provider-returned actual cost when available
+
+Always prefer authoritative post-call usage/cost over your estimate.
+
+For example, xAI currently documents an exact per-response `cost_in_usd_ticks` value, while Leonardo documents API-generation cost information and Runway publishes model-specific API credit pricing. ([X.ai][16])
+
+The architecture should therefore store both:
+
+```text
+estimated_cost
+actual_provider_cost
+```
+
+and calculate:
+
+```text
+variance
+```
+
+---
+
+# 48. API prices must not be static
+
+A dashboard might show:
+
+```text
+Provider spending
+
+Runway        $2,842
+ElevenLabs    $941
+OpenAI        $728
+Google        $612
+Higgsfield    $484
+Custom GPU    $351
+--------------------------------
+Total         $5,958
+```
+
+Drill down:
+
+```text
+Workspace
+Project
+User
+Module
+Provider
+Model
+Day
+Generation
+```
+
+And:
+
+```text
+Cost per finished minute
+Cost per commercial
+Cost per accepted shot
+Regeneration ratio
+Waste rate
+```
+
+**Cost per accepted generation** may ultimately matter more than cost per API call.
+
+---
+
+# 49. Current API economics illustrate why the router matters
+
+As of **September 22, 2026**, different providers use very different charging units.
+
+Runway's API prices many video operations per second using credits where one credit equals $0.01, with different resolution/model rates. ([Runway Dev][17])
+
+Higgsfield's recently launched self-serve API exposes dozens of media models under a single balance and publishes per-generation/per-second prices—for example its listed rates span very different price points across Kling, Seedance, WAN, LTX and its own image products. ([Higgsfield AI][18])
+
+ElevenLabs uses credits across products; its current pricing page describes character-based speech usage as well as per-minute/per-generation credit consumption for STT, music, SFX, voice-changing/isolation and dubbing. ([ElevenLabs][19])
+
+xAI similarly has separate token, image, video-second and voice pricing. ([X.ai][20])
+
+So the internal unit-normalization layer is mandatory.
+
+---
+
+# 50. Cost Control Center
+
+I would expose:
+
+```text
+MONTHLY BUDGET
+$5,000 / $8,000
+
+AI USAGE
+███████████░░░
+
+By project
+Film A                  $2,140
+Brand X Campaign        $1,832
+R&D                     $1,028
+```
+
+Alerts:
+
+```text
+50%
+75%
+90%
+100%
+```
+
+Optional hard controls:
+
+```text
+Max job cost             $10
+Max daily user spend     $50
+Max project spend      $1000
+Require approval above   $25
+```
+
+And:
+
+> This shot costs approximately 7× more with Maximum quality. Continue?
+
+---
+
+# 51. Cost-efficient infrastructure
+
+Recommended architecture:
+
+```text
+                    Web Application
+                          │
+                     API Gateway
+                          │
+        ┌─────────────────┼─────────────────┐
+        │                 │                 │
+  Project Service    AI Orchestrator   Media Service
+        │                 │                 │
+    PostgreSQL       Model Router        FFmpeg
+        │                 │                 │
+     pgvector      Provider Adapters    GPU workers
+        │                 │                 │
+        └────────── Event / Job Bus ────────┘
+                          │
+                       Redis
+                          │
+                     Object Store
+                          │
+                         CDN
+```
+
+My likely stack:
+
+```text
+Frontend
+Next.js
+React
+TypeScript
+WebCodecs
+WebGPU
+WebAssembly
+
+Application
+TypeScript/NestJS or FastAPI
+Python worker services where ML-heavy
+
+Database
+PostgreSQL
+pgvector
+
+Cache
+Redis
+
+Workflow orchestration
+Temporal
+
+Storage
+S3-compatible object storage
+
+Media
+FFmpeg
+GPU encoding workers
+
+Search
+Postgres initially
+OpenSearch later if necessary
+
+Events
+Postgres/Temporal initially
+Kafka/NATS only once scale justifies it
+
+Custom inference
+Kubernetes / Modal / RunPod-style GPU workers
+
+Secrets
+Cloud KMS + Vault/Secrets Manager
+```
+
+Avoid prematurely building 50 microservices.
+
+---
+
+# 52. Web editor architecture
+
+The browser should normally manipulate proxies.
+
+```text
+4K/8K Master
+    ↓
+Proxy worker
+    ↓
+720p editing proxy
+    ↓
+Browser editor
+    ↓
+EDL / timeline JSON
+    ↓
+Server renderer
+    ↓
+4K master
+```
+
+Use WebCodecs/WebGPU for responsive preview where supported.
+
+Use backend FFmpeg/GPU encoding for authoritative final renders.
+
+---
+
+# 53. Timeline data should be non-destructive
+
+Something approximately like:
+
+```text
+Timeline
+  tracks[]
+    clips[]
+      asset_id
+      source_in
+      source_out
+      timeline_in
+      timeline_out
+      transform
+      speed
+      effects[]
+      keyframes[]
+```
+
+Never bake operations prematurely.
+
+An AI edit becomes normal timeline operations.
+
+That means users can undo AI.
+
+---
+
+# 54. Versioning
+
+Every major object should support:
+
+```text
+v1
+v2
+v3
+...
+```
+
+including:
+
+```text
+script
+storyboard
+shot
+take
+character
+model
+prompt
+timeline
+music
+dub
+final delivery
+```
+
+Include branching:
+
+```text
+Director Cut
+Client Cut
+30-sec Cut
+India Cut
+US Cut
+```
+
+sharing common media.
+
+---
+
+# 55. Collaboration
+
+Roles:
+
+```text
+Owner
+Producer
+Director
+Writer
+Editor
+VFX
+Sound
+Composer
+Client
+Reviewer
+Viewer
+```
+
+Comments can attach to:
+
+```text
+Project
+Script line
+Storyboard frame
+Shot
+Video timecode
+Audio region
+Timeline
+Asset
+Generation
+```
+
+Approval:
+
+```text
+Needs Review
+Changes Requested
+Approved
+Locked
+```
+
+---
+
+# 56. Workflow builder
+
+Think:
+
+```text
+"When storyboard shot is approved"
+        ↓
+Generate 3 motion tests
+        ↓
+Select cheapest acceptable
+        ↓
+Send for review
+        ↓
+If approved
+        ↓
+Generate production quality
+        ↓
+Upscale
+        ↓
+Add to timeline
+```
+
+Nodes:
+
+```text
+Input
+LLM
+RAG
+Image model
+Video model
+Audio model
+Music model
+Condition
+Human approval
+Loop
+Transform
+Webhook
+Storage
+Export
+```
+
+Users can save workflows as internal Apps, an approach conceptually similar to Runway's reusable workflows/apps. ([Runway Help][21])
+
+---
+
+# 57. Creative Agent
+
+A persistent omnipresent input:
+
+```text
+Ask StudioOS...
+```
+
+Examples:
+
+> Give scene 32 more tension.
+
+> Show me every continuity issue.
+
+> Generate storyboards for scenes 4–8.
+
+> Try three cheaper models for shot 17.
+
+> Make this commercial work as a six-second bumper.
+
+> Dub the approved master into Hindi and Bengali.
+
+> Change the score after 01:18 without changing the dialogue.
+
+> What did we spend yesterday?
+
+The agent doesn't own the assets.
+
+It operates the same underlying Project Graph and tools as the UI.
+
+---
+
+# 58. Command preview is important
+
+For destructive/expensive commands:
+
+```text
+You asked:
+"Regenerate Scene 4"
+
+This will:
+• Generate 11 video clips
+• Reuse 4 existing clips
+• Regenerate 2 voice lines
+• Keep existing music
+• Expected cost: $14.20–$18.70
+
+[Run]
+```
+
+That is how an AI production system becomes trustworthy.
+
+---
+
+# 59. The big differentiator: Dependency Graph
+
+Suppose the client changes the product bottle.
+
+Instead of recreating the entire commercial:
+
+```text
+Product Bottle v2
+         │
+    dependency graph
+         │
+ ┌───────┼─────────┐
+Shot 3  Shot 5    Shot 7
+                  │
+              Thumbnail
+```
+
+StudioOS identifies only affected assets.
+
+Then:
+
+> Update dependent assets only.
+
+That is extremely valuable.
+
+---
+
+# 60. Project “DNA”
+
+Every project should have reusable DNA layers:
+
+```text
+Story DNA
+Character DNA
+World DNA
+Visual DNA
+Camera DNA
+Color DNA
+Audio DNA
+Music DNA
+Brand DNA
+```
+
+The entire creative identity becomes explicit and portable between models.
+
+This avoids locking creative intent into vendor-specific prompts.
+
+---
+
+# 61. Provenance
+
+For every final asset maintain:
+
+```text
+human source material
+AI models involved
+model versions
+generation IDs
+edits
+voice/likeness permissions
+music licenses
+stock licenses
+external references
+commercial rights state
+```
+
+Where appropriate, support C2PA/content credentials.
+
+This will matter greatly to studios/agencies.
+
+---
+
+# 62. Deliverables
+
+Cinema:
+
+```text
+MP4
+MOV
+ProRes
+H.264/H.265
+PNG/EXR sequence
+4K
+HDR/SDR
+24/25/30 fps
+subtitles
+dialogue stem
+music stem
+SFX stem
+M&E
+EDL
+AAF
+XML
+OpenTimelineIO
+```
+
+Runway's own provision of ProRes and PNG-sequence exports reinforces the need to support professional handoff rather than only social-media MP4. ([Runway Help][22])
+
+Commercials:
+
+```text
+16:9
+9:16
+4:5
+1:1
+2.39:1
+
+6 sec
+10 sec
+15 sec
+30 sec
+60 sec
+
+localized versions
+clean version
+captioned version
+textless version
+platform presets
+```
+
+---
+
+# 63. Recommended UX philosophy
+
+I would support three complexity levels simultaneously.
+
+### Quick
+
+```text
+Describe what you want.
+```
+
+AI selects settings.
+
+### Director
+
+Controls such as:
+
+```text
+camera
+lens
+movement
+light
+character
+references
+duration
+style
+```
+
+### Pro
+
+Everything:
+
+```text
+model
+seed
+CFG-equivalent controls
+reference weights
+frame bindings
+sampling/provider-specific parameters
+fine-tune
+routing
+resolution
+cost
+advanced timeline controls
+```
+
+This is essential.
+
+You can be easier than CapCut for a beginner **without preventing a professional from going deep**.
+
+---
+
+# 64. Don't expose every vendor's terminology directly
+
+Bad:
+
+```text
+Runway screen
+Higgsfield screen
+Kling screen
+Veo screen
+```
+
+Better:
+
+```text
+StudioOS Video
+  └ Model = Auto / Runway / Kling / Veo / ...
+```
+
+Then when a provider has special capabilities:
+
+```text
+Advanced
+└ Provider-specific controls
+```
+
+Thus a user's project outlives any vendor.
+
+---
+
+# 65. Draft / Production / Hero modes
+
+Very useful cost abstraction:
+
+| Mode           | Intent                                       |
+| -------------- | -------------------------------------------- |
+| **Draft**      | cheap models, low resolution, short duration |
+| **Production** | balanced final-quality generation            |
+| **Hero**       | premium models/settings                      |
+| **Manual**     | user decides everything                      |
+
+Storyboarding defaults to Draft.
+
+Approved hero shots can move to Hero.
+
+Most metadata and RAG operations use inexpensive text models.
+
+---
+
+# 66. What I would *not* do
+
+The platform should avoid becoming:
+
+> Runway + CapCut + Suno + ElevenLabs + Leonardo squeezed into one giant toolbar.
+
+That creates an unusable product.
+
+Instead, use one underlying platform with **contextual workspaces**:
+
+```text
+Cinema
+Commercial
+Story
+Image
+Video
+Audio
+Music
+Edit
+```
+
+Everything understands the same assets and project state.
+
+That common intelligence is the real product.
+
+---
+
+# 67. Recommended initial database domain
+
+The major entities would include:
+
+```text
+User
+Organization
+Workspace
+Project
+ProjectMember
+
+KnowledgeSource
+DocumentChunk
+
+Brand
+Character
+Voice
+Product
+Location
+Style
+World
+
+Script
+ScriptVersion
+Sequence
+Scene
+Shot
+Take
+
+Asset
+AssetVersion
+AssetRelation
+
+Timeline
+Track
+Clip
+Effect
+Keyframe
+
+GenerationJob
+GenerationInput
+GenerationOutput
+PromptVersion
+
+Provider
+Model
+ModelVersion
+Capability
+PricingRule
+
+FineTune
+Dataset
+DatasetItem
+ModelDeployment
+
+UsageEvent
+CreditTransaction
+Invoice
+Budget
+
+Comment
+Annotation
+Approval
+Deliverable
+```
+
+This schema is much more important than obsessing about the first landing page.
+
+---
+
+# 68. One generation pipeline
+
+Example:
+
+```text
+UI
+ ↓
+Generation Request
+ ↓
+Validate project permissions
+ ↓
+Resolve references
+ ↓
+Fetch Story/Brand context
+ ↓
+Normalize into CapabilityRequest
+ ↓
+Model Router
+ ↓
+Cost estimator
+ ↓
+Budget validation
+ ↓
+Provider adapter
+ ↓
+Generation job
+ ↓
+Provider
+ ↓
+Receive output
+ ↓
+Meter actual usage
+ ↓
+Download media
+ ↓
+Fingerprint
+ ↓
+Store master
+ ↓
+Generate proxy/thumb/waveform
+ ↓
+Extract metadata
+ ↓
+Index embeddings
+ ↓
+Attach lineage
+ ↓
+Notify UI
+```
+
+That is the platform's backbone.
+
+---
+
+# 69. Proposed development strategy
+
+Even though the target is “ultimate”, I would build it in four internal releases.
+
+| Release        | Goal                                                                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Foundation** | Auth, organizations, projects, cloud assets, Model Hub, provider adapters, job system, pricing ledger, basic Story/Image/Video generation |
+| **Production** | Cinema Studio, Commercial Studio, Story Bible/Brand DNA, RAG, characters, shot planning, editor, proxy/render pipeline                    |
+| **Pro Studio** | Advanced audio, dubbing, generative music DAW, continuity engine, multicam/color/pro editor, advanced training/fine-tuning                |
+| **Platform**   | Workflow builder, plugin/API ecosystem, custom inference, enterprise governance, realtime collaboration, deeper automation                |
+
+But architect the data model and provider abstraction for the end-state from Release 1.
+
+---
+
+# 70. Where I think the defensible product is
+
+The moat isn't simply:
+
+**“We have 50 models.”**
+
+Higgsfield itself now markets API access across 50+ image/video models, so aggregation alone is unlikely to remain a meaningful differentiator. ([Higgsfield AI][18])
+
+The moat should be:
+
+**Creative memory + production graph + continuity + professional editing + model independence + cost intelligence.**
+
+In other words:
+
+```text
+        STORY / BRAND INTENT
+                 │
+          PROJECT MEMORY
+                 │
+          DIRECTOR GRAPH
+                 │
+    ┌────────────┼────────────┐
+ IMAGE         VIDEO         AUDIO
+    │             │             │
+    └────────────┼─────────────┘
+                 │
+             TIMELINE
+                 │
+          CONTINUITY ENGINE
+                 │
+        COST-AWARE ROUTER
+                 │
+              MASTER
+                 │
+           DELIVERABLES
+```
+
+## The product promise
+
+**Cinema Studio**
+
+> Go from an idea, screenplay or reference library to a coherent short film, episode, commercial-length narrative or feature-production workflow—with persistent characters, environments, cinematic direction, voice, score and professional post-production.
+
+**Commercial Studio**
+
+> Go from product/URL/brand brief to dozens of consistent, localized, platform-ready campaigns—while retaining precise control over product appearance, brand rules, actors, voice, music, editing and cost.
+
+And underneath both:
+
+> **Any model. One project. One creative memory. One timeline. One bill.**
+
+That is the version I would build.
+
+The particularly important architectural decision is to make **Model Hub + Project Graph + Usage Ledger** foundational rather than adding them after the generation features. If those three systems are correct, models can come and go without forcing you to redesign the product; Google's documented model migrations and the continuously changing pricing/capability catalogs across Runway, Higgsfield, xAI and others demonstrate why this abstraction matters. ([Google AI for Developers][23])
+
+[1]: https://help.runwayml.com/hc/en-us/articles/24298206897043-Navigating-Runway?utm_source=chatgpt.com "Navigating Runway – Runway"
+[2]: https://higgsfield.ai/blog/cinema-studio-4-0?utm_source=chatgpt.com "Meet Cinema Studio 4.0: New Generation of AI Filmmaking"
+[3]: https://www.capcut.com/resource/how-to-use-capcut?utm_source=chatgpt.com "How to Use CapCut: Get More Creative with Video Edits"
+[4]: https://elevenlabs.io/docs/overview/intro?utm_source=chatgpt.com "Documentation | ElevenLabs Documentation"
+[5]: https://help.suno.com/en/articles/7940161?utm_source=chatgpt.com "Introduction to Studio - Suno Help"
+[6]: https://intercom.help/leonardo-ai/en/articles/11483692-using-omni-models-and-the-inline-editor?utm_source=chatgpt.com "Using Omni Models and the Inline Editor | Leonardo.Ai Help Center"
+[7]: https://help.runwayml.com/hc/en-us/articles/40042718905875-Creating-with-Gen-4-Image-References?utm_source=chatgpt.com "Creating with Gen-4 Image References – Runway"
+[8]: https://higgsfield.ai/blog/new-marketing-studio-higgsfield?utm_source=chatgpt.com "Meet the New Marketing Studio: How It Works and What You Get"
+[9]: https://higgsfield.ai/creator-hub/help-center/ai-models/how-do-i-create-and-use-a-soul-id-character?utm_source=chatgpt.com "How to Create and Use a Soul ID Character"
+[10]: https://elevenlabs.io/docs/overview/capabilities/dubbing?utm_source=chatgpt.com "Dubbing | ElevenLabs Documentation"
+[11]: https://elevenlabs.io/docs/overview/capabilities/sound-effects?utm_source=chatgpt.com "Sound effects | ElevenLabs Documentation"
+[12]: https://help.suno.com/en/articles/13670593?utm_source=chatgpt.com "MIDI in Studio - Suno Help"
+[13]: https://elevenlabs.io/docs/overview/capabilities/music?utm_source=chatgpt.com "Eleven Music | ElevenLabs Documentation"
+[14]: https://ai.google.dev/gemini-api/docs/pricing?authuser=451499271&utm_source=chatgpt.com "Gemini Developer API pricing  |  Gemini API  |  Google AI for Developers"
+[15]: https://platform.openai.com/docs/models/whisper?utm_source=chatgpt.com "Models | OpenAI API"
+[16]: https://docs.x.ai/developers/cost-tracking?utm_source=chatgpt.com "Cost Tracking | SpaceXAI Docs"
+[17]: https://docs.dev.runwayml.com/guides/pricing/?utm_source=chatgpt.com "API Pricing & Costs | Runway Dev"
+[18]: https://higgsfield.ai/blog/higgsfield-api?utm_source=chatgpt.com "Meet the Higgsfield API: How It Works and What You Get"
+[19]: https://elevenlabs.io/pricing?utm_source=chatgpt.com "ElevenLabs Pricing for Creators & Businesses of All Sizes"
+[20]: https://docs.x.ai/developers/pricing?utm_source=chatgpt.com "API Pricing | SpaceXAI Docs"
+[21]: https://help.runwayml.com/hc/en-us/articles/45570040112531-Creating-with-Apps?utm_source=chatgpt.com "Creating with Apps – Runway"
+[22]: https://help.runwayml.com/hc/en-us/articles/54396547993491-Exporting-Videos-in-ProRes-and-PNG-Sequence-Formats?utm_source=chatgpt.com "Exporting Videos in ProRes and PNG Sequence Formats – Runway"
+[23]: https://ai.google.dev/gemini-api/docs/deprecations?utm_source=chatgpt.com "Gemini deprecations  |  Gemini API  |  Google AI for Developers"

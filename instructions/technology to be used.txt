@@ -1,0 +1,2094 @@
+For the product we described, I would **not** use a single-language/single-framework architecture. The application has four very different workloads: normal SaaS/backend work, AI orchestration, heavy media processing, and browser-based real-time editing. Each should use the technology best suited to it.
+
+My recommended production stack would look like this:
+
+| Layer                  | Primary technologies                         |
+| ---------------------- | -------------------------------------------- |
+| Web app                | **Next.js + React + TypeScript**             |
+| Design system          | Tailwind CSS + Radix/shadcn-style primitives |
+| Video/image canvas     | WebGL + WebGPU + Canvas + OffscreenCanvas    |
+| Browser video/audio    | **WebCodecs**, Web Audio API, AudioWorklet   |
+| Browser workers        | Web Workers + WASM                           |
+| Main backend           | **TypeScript + NestJS**                      |
+| AI/backend workers     | **Python + FastAPI**                         |
+| AI workflows           | **Temporal**                                 |
+| Agent orchestration    | Custom orchestrator + optional LangGraph     |
+| Main database          | **PostgreSQL**                               |
+| Vector/RAG             | **pgvector** initially                       |
+| Cache                  | Redis                                        |
+| Object storage         | S3-compatible storage                        |
+| CDN                    | CloudFront / Cloudflare                      |
+| Media processing       | **FFmpeg**                                   |
+| GPU processing         | Python + PyTorch + CUDA                      |
+| Custom model serving   | vLLM / Triton / diffusers / custom workers   |
+| Realtime collaboration | WebSocket + Yjs/CRDT                         |
+| Search                 | PostgreSQL first, OpenSearch later           |
+| Analytics              | ClickHouse                                   |
+| Billing                | Internal usage ledger + Stripe               |
+| Observability          | OpenTelemetry + Prometheus/Grafana + Sentry  |
+| Containerization       | Docker                                       |
+| Orchestration          | Kubernetes once scale requires it            |
+| CI/CD                  | GitHub Actions                               |
+| IaC                    | Terraform                                    |
+| Secrets                | AWS Secrets Manager / Vault / KMS            |
+
+Next.js remains a good fit for the primary web application and its current App Router supports the modern React model. ([Next.js][1])
+
+---
+
+# 1. Frontend
+
+I would use:
+
+```text
+Next.js
+React
+TypeScript
+Tailwind CSS
+Zustand
+TanStack Query
+WebSocket
+Yjs
+```
+
+### Why Next.js?
+
+Your application isn't just an editor.
+
+It also has:
+
+* landing pages;
+* authentication;
+* dashboards;
+* projects;
+* billing;
+* API management;
+* admin;
+* generation pages;
+* collaborative editing.
+
+Next.js handles this combination well. ([Next.js][1])
+
+I would probably structure the frontend as:
+
+```text
+apps/
+├── web
+├── editor
+├── admin
+└── docs
+```
+
+in a monorepo.
+
+---
+
+# 2. Monorepo
+
+Use:
+
+```text
+pnpm
+Turborepo
+```
+
+Example:
+
+```text
+studio-os/
+│
+├── apps/
+│   ├── web
+│   ├── api
+│   ├── admin
+│   └── docs
+│
+├── services/
+│   ├── ai-orchestrator
+│   ├── media-worker
+│   ├── render-worker
+│   ├── embedding-worker
+│   └── inference-worker
+│
+├── packages/
+│   ├── ui
+│   ├── db
+│   ├── schemas
+│   ├── auth
+│   ├── providers
+│   ├── billing
+│   ├── timeline
+│   └── sdk
+│
+└── infrastructure/
+    ├── terraform
+    ├── docker
+    └── kubernetes
+```
+
+This avoids having ten independent repositories while the company is young.
+
+---
+
+# 3. Video editor technology
+
+This is probably the technically hardest frontend component.
+
+The editor should use:
+
+```text
+React UI
+       ↓
+Timeline engine
+       ↓
+Media engine
+       ↓
+WebCodecs
+WebAudio
+Canvas/WebGL/WebGPU
+       ↓
+Proxy video
+```
+
+**WebCodecs is particularly important.**
+
+It gives low-level browser access to video/audio frames and hardware-assisted encoding/decoding and is explicitly suitable for browser video/audio editing workloads. ([MDN Web Docs][2])
+
+So instead of:
+
+```text
+<video>
+```
+
+being your entire editor architecture, you operate on:
+
+```text
+EncodedVideoChunk
+       ↓
+VideoDecoder
+       ↓
+VideoFrame
+       ↓
+GPU processing
+       ↓
+Canvas
+```
+
+---
+
+# 4. WebGPU
+
+For:
+
+* transitions;
+* compositing;
+* masks;
+* blending;
+* LUTs;
+* color correction;
+* scopes;
+* transformations;
+* image effects;
+* GPU kernels;
+* realtime preview.
+
+Use:
+
+```text
+WebGPU
+```
+
+with:
+
+```text
+WebGL2 fallback
+```
+
+because WebGPU is still not universally available across all browser environments. ([MDN Web Docs][3])
+
+Therefore:
+
+```typescript
+if (navigator.gpu) {
+    useWebGPU();
+} else {
+    useWebGL();
+}
+```
+
+Conceptually.
+
+---
+
+# 5. Don't run the final render in the browser
+
+Important architecture decision.
+
+The browser should provide:
+
+```text
+preview
+editing
+proxy playback
+interactive effects
+```
+
+Final rendering happens server-side.
+
+Example:
+
+```text
+USER EDITOR
+     │
+     │ Timeline JSON
+     ↓
+Render API
+     │
+     ↓
+Render Worker
+     │
+     ├─ FFmpeg
+     ├─ GPU
+     ├─ Fonts
+     ├─ Effects
+     └─ Originals
+     │
+     ↓
+ProRes / H264 / H265 / etc.
+```
+
+---
+
+# 6. Timeline engine
+
+I would build our own timeline model rather than making some third-party video editor library the fundamental architecture.
+
+Something like:
+
+```typescript
+interface Timeline {
+    fps: number;
+    width: number;
+    height: number;
+
+    tracks: Track[];
+}
+
+interface Clip {
+    id: string;
+
+    assetId: string;
+
+    sourceIn: number;
+    sourceOut: number;
+
+    timelineStart: number;
+
+    transform: Transform;
+
+    effects: Effect[];
+
+    keyframes: Keyframe[];
+}
+```
+
+This timeline becomes the source of truth.
+
+---
+
+# 7. OpenTimelineIO
+
+Internally we could support:
+
+```text
+OpenTimelineIO
+```
+
+for interchange.
+
+This eventually gives easier compatibility with professional editing pipelines.
+
+Exports could include:
+
+```text
+OTIO
+EDL
+XML
+AAF
+```
+
+depending on implementation.
+
+---
+
+# 8. Media processing
+
+Server side:
+
+# FFmpeg
+
+This will be one of the most important dependencies in the product.
+
+Use it for:
+
+```text
+transcoding
+proxy generation
+thumbnail generation
+audio extraction
+waveforms
+concatenation
+resizing
+frame extraction
+codec conversion
+muxing
+demuxing
+filters
+color transforms
+audio mixing
+delivery encoding
+```
+
+But wrap FFmpeg behind your own:
+
+```text
+MediaService
+```
+
+Don't let the entire application call FFmpeg commands directly.
+
+---
+
+# 9. GPU media processing
+
+For operations beyond FFmpeg:
+
+```text
+Python
+PyTorch
+CUDA
+ONNX Runtime
+TensorRT
+OpenCV
+```
+
+Potentially:
+
+```text
+Vulkan
+NVIDIA Video Codec SDK
+```
+
+for highly optimized transcoding later.
+
+---
+
+# 10. Backend split
+
+I would intentionally use **two backend languages**.
+
+### TypeScript backend
+
+Use:
+
+```text
+NestJS
+```
+
+for normal product/business services:
+
+```text
+Authentication
+Projects
+Assets
+Teams
+Permissions
+Billing
+API keys
+Comments
+Approvals
+Models
+Generation requests
+Usage
+Webhooks
+```
+
+Why?
+
+Because frontend and backend can share:
+
+```text
+TypeScript types
+Zod schemas
+API contracts
+validation
+```
+
+---
+
+# 11. Python backend
+
+Use Python for:
+
+```text
+AI
+RAG
+embeddings
+computer vision
+audio analysis
+ML pipelines
+fine-tuning
+GPU inference
+model evaluation
+media intelligence
+```
+
+Likely framework:
+
+```text
+FastAPI
+Pydantic
+```
+
+Architecture:
+
+```text
+NestJS
+   │
+   ├──── Python AI Service
+   │
+   ├──── Python Vision Service
+   │
+   └──── Python Training Service
+```
+
+---
+
+# 12. Communication between services
+
+Initially:
+
+```text
+HTTP REST
+```
+
+plus:
+
+```text
+Temporal
+```
+
+for long-running workflows.
+
+Later, internal high-volume services could use:
+
+```text
+gRPC / Protobuf
+```
+
+But don't make everything gRPC on day one.
+
+---
+
+# 13. Temporal is extremely useful here
+
+This isn't a normal CRUD application.
+
+Some jobs can take:
+
+```text
+5 sec
+30 sec
+5 min
+20 min
+several hours
+```
+
+And providers fail.
+
+A generation might involve:
+
+```text
+Generate
+   ↓
+Wait provider
+   ↓
+Download
+   ↓
+Transcode
+   ↓
+Create thumbnails
+   ↓
+Extract embeddings
+   ↓
+Moderation
+   ↓
+Store
+   ↓
+Meter cost
+```
+
+Temporal is designed for durable execution: workflows can resume through crashes, network failures and infrastructure interruptions rather than losing state. ([Temporal Docs][4])
+
+Therefore:
+
+```text
+Temporal
+
+GenerationWorkflow
+RenderWorkflow
+FineTuneWorkflow
+IngestWorkflow
+DubbingWorkflow
+ExportWorkflow
+```
+
+---
+
+# 14. Queue system
+
+With Temporal handling major workflows, you don't immediately need Kafka.
+
+Initially:
+
+```text
+Temporal
+Redis
+Postgres
+```
+
+is enough.
+
+Later:
+
+```text
+Kafka
+```
+
+or:
+
+```text
+NATS JetStream
+```
+
+can handle high-volume events.
+
+I wouldn't start with Kafka unless actual scale demands it.
+
+---
+
+# 15. Primary database
+
+Use:
+
+# PostgreSQL
+
+Not MongoDB.
+
+Your data is highly relational:
+
+```text
+Workspace
+ → Project
+    → Scene
+       → Shot
+          → Take
+```
+
+and:
+
+```text
+Generation
+ → Provider
+ → Model
+ → Usage
+ → Invoice
+```
+
+plus:
+
+```text
+Characters
+Assets
+Versions
+Permissions
+Comments
+Approvals
+```
+
+Postgres is ideal.
+
+---
+
+# 16. ORM
+
+For TypeScript I would strongly consider:
+
+```text
+Drizzle ORM
+```
+
+or:
+
+```text
+Prisma
+```
+
+My preference here would likely be:
+
+**Drizzle + PostgreSQL**
+
+because the system will eventually require sophisticated SQL.
+
+---
+
+# 17. RAG database
+
+Initially don't introduce Pinecone/Weaviate/Qdrant unless necessary.
+
+Use:
+
+```text
+PostgreSQL
++
+pgvector
+```
+
+pgvector provides exact and approximate nearest-neighbor search directly inside Postgres and supports cosine, inner-product and other vector distances. ([GitHub][5])
+
+So:
+
+```sql
+assets
+documents
+chunks
+scenes
+characters
+embeddings
+```
+
+can remain closely connected.
+
+---
+
+# 18. RAG architecture
+
+Something like:
+
+```text
+PDF
+DOCX
+Video
+Audio
+Image
+        ↓
+Ingestion Service
+        ↓
+Extraction
+        ↓
+Semantic chunks
+        ↓
+Metadata
+        ↓
+Embeddings
+        ↓
+PostgreSQL + pgvector
+```
+
+Retrieval:
+
+```text
+Query
+ ↓
+Query rewriting
+ ↓
+Metadata filter
+ ↓
+Vector search
+ ↓
+Keyword search
+ ↓
+Reranker
+ ↓
+Context builder
+ ↓
+LLM
+```
+
+---
+
+# 19. Hybrid search
+
+Use both:
+
+```text
+Postgres full-text search
++
+pgvector
+```
+
+rather than vector search alone.
+
+Later, at very high scale:
+
+```text
+OpenSearch
+```
+
+can be introduced.
+
+---
+
+# 20. AI provider layer
+
+The most important software abstraction is something I'd call:
+
+```text
+AI Gateway
+```
+
+It sits between StudioOS and AI providers.
+
+```text
+                 AI Gateway
+                     │
+     ┌───────────────┼─────────────┐
+     │               │             │
+   OpenAI          Gemini         xAI
+     │               │             │
+ Anthropic        Runway     ElevenLabs
+     │               │             │
+ Higgsfield       fal.ai      Replicate
+                     │
+                Custom models
+```
+
+---
+
+# 21. Don't call SDKs directly from application code
+
+Bad:
+
+```typescript
+openai.images.generate(...)
+```
+
+throughout the product.
+
+Better:
+
+```typescript
+ai.image.generate(...)
+```
+
+Then the AI Gateway determines:
+
+```text
+provider
+model
+credentials
+price
+fallback
+```
+
+---
+
+# 22. Provider SDKs
+
+Underneath adapters:
+
+```text
+OpenAI SDK
+Google GenAI SDK
+Anthropic SDK
+xAI API
+Runway API
+ElevenLabs API
+Higgsfield API
+fal.ai
+Replicate
+etc.
+```
+
+Each is isolated.
+
+For example:
+
+```text
+/providers
+
+openai/
+google/
+anthropic/
+xai/
+runway/
+elevenlabs/
+higgsfield/
+fal/
+replicate/
+custom/
+```
+
+---
+
+# 23. Dynamic Model Registry
+
+Database tables:
+
+```text
+Provider
+
+Model
+ModelVersion
+
+Capability
+
+ModelCapability
+
+ParameterSchema
+
+PricingRule
+```
+
+Example:
+
+```text
+Model:
+  provider: Google
+  model: video-x
+
+Capabilities:
+  text_to_video
+  image_to_video
+
+Parameters:
+  duration
+  resolution
+  aspectRatio
+```
+
+Frontend reads the schema and dynamically creates controls.
+
+---
+
+# 24. JSON Schema
+
+Very useful here:
+
+```text
+JSON Schema
+```
+
+Example model parameters:
+
+```json
+{
+  "duration": {
+    "type": "number",
+    "minimum": 2,
+    "maximum": 10
+  },
+
+  "aspect_ratio": {
+    "type": "enum",
+    "values": [
+      "16:9",
+      "9:16",
+      "1:1"
+    ]
+  }
+}
+```
+
+Then adding a model doesn't require hardcoding its UI.
+
+---
+
+# 25. BYOM / Custom Model
+
+Support:
+
+```text
+OpenAI-compatible APIs
+```
+
+first.
+
+Users provide:
+
+```text
+Base URL
+API Key
+Model ID
+```
+
+Then support custom HTTP schemas.
+
+Advanced:
+
+```text
+Custom inference containers
+```
+
+---
+
+# 26. Self-hosted LLM inference
+
+For open-source LLMs:
+
+```text
+vLLM
+```
+
+would be my default serving engine.
+
+For specialized ML:
+
+```text
+NVIDIA Triton
+```
+
+is useful.
+
+For diffusion:
+
+```text
+PyTorch
+Diffusers
+ComfyUI-based workers
+```
+
+could be used depending on the workflow.
+
+Important:
+
+I would not make ComfyUI the fundamental backend.
+
+Instead:
+
+```text
+StudioOS Workflow
+        ↓
+Inference Adapter
+        ↓
+ComfyUI / Diffusers / provider
+```
+
+---
+
+# 27. GPU infrastructure
+
+Eventually:
+
+```text
+Kubernetes
+NVIDIA GPUs
+```
+
+with separate pools.
+
+Example:
+
+```text
+CPU pool
+
+L4 pool
+A10 pool
+A100 pool
+H100/H200 pool
+```
+
+Different tasks route accordingly.
+
+---
+
+# 28. Don't self-host everything immediately
+
+Initially:
+
+```text
+90% external APIs
+10% internal processing
+```
+
+Later:
+
+```text
+External APIs
++
+high-volume self-hosted models
+```
+
+The router can calculate:
+
+```text
+API provider cost
+vs
+GPU internal cost
+```
+
+and choose accordingly.
+
+---
+
+# 29. Storage
+
+Media should not live in your application database.
+
+Use:
+
+```text
+AWS S3
+```
+
+or another S3-compatible store.
+
+Architecture:
+
+```text
+PostgreSQL
+
+asset_id
+metadata
+path
+checksum
+...
+
+           ↓
+
+S3
+
+originals/
+proxies/
+thumbnails/
+audio/
+renders/
+exports/
+```
+
+---
+
+# 30. Upload technology
+
+Browser:
+
+```text
+multipart upload
+resumable upload
+presigned URLs
+```
+
+Large files go:
+
+```text
+Browser
+   ↓
+Object storage
+```
+
+not:
+
+```text
+Browser
+ ↓
+Next.js
+ ↓
+Object storage
+```
+
+Otherwise your application servers become unnecessarily expensive.
+
+---
+
+# 31. CDN
+
+Use:
+
+```text
+CloudFront
+```
+
+if primarily on AWS.
+
+Or:
+
+```text
+Cloudflare
+```
+
+For:
+
+```text
+proxy videos
+thumbnails
+waveforms
+preview audio
+images
+```
+
+Original masters remain private.
+
+---
+
+# 32. Redis
+
+Use Redis for:
+
+```text
+cache
+rate limiting
+temporary state
+presence
+locks
+fast counters
+```
+
+But not as permanent storage.
+
+---
+
+# 33. Collaboration
+
+For realtime collaborative screenplay/edit metadata:
+
+```text
+Yjs
+```
+
+with CRDTs.
+
+Communication:
+
+```text
+WebSockets
+```
+
+That enables:
+
+```text
+presence
+live cursors
+comments
+live script editing
+shared timeline
+```
+
+---
+
+# 34. RAG document parsing
+
+Different parsers:
+
+```text
+PDF parser
+DOCX parser
+HTML parser
+spreadsheet parser
+```
+
+Images:
+
+```text
+vision model
+```
+
+Audio/video:
+
+```text
+speech-to-text
++
+scene detection
++
+vision models
+```
+
+Don't OCR every file indiscriminately.
+
+---
+
+# 35. Video understanding
+
+Pipeline:
+
+```text
+Video
+ ↓
+FFmpeg
+ ↓
+scene segmentation
+ ↓
+keyframes
+ ↓
+vision model
+ ↓
+objects
+characters
+actions
+locations
+camera
+ ↓
+embeddings
+```
+
+Then the video becomes searchable.
+
+---
+
+# 36. Multi-agent architecture
+
+I would not build the core around uncontrolled agent-to-agent conversations.
+
+Instead:
+
+```text
+Director Agent
+     │
+     ↓
+Orchestrator
+     │
+ ┌───┼─────────┐
+ │   │         │
+Writer DP     Editor
+ │   │         │
+tools tools   tools
+```
+
+Underneath:
+
+```text
+LLM
+Tool registry
+RAG
+Project graph
+Temporal
+```
+
+---
+
+# 37. LangGraph?
+
+Potentially.
+
+But I would make it:
+
+```text
+optional orchestration library
+```
+
+not:
+
+```text
+foundation of StudioOS
+```
+
+Your own abstraction should control:
+
+```text
+Agent
+Tool
+Context
+Run
+Checkpoint
+Usage
+Approval
+```
+
+Then LangGraph or another agent framework can operate underneath if useful.
+
+---
+
+# 38. Tool system
+
+Internally use something resembling:
+
+```typescript
+interface Tool {
+    name: string;
+    description: string;
+    inputSchema: JSONSchema;
+
+    execute(
+        input,
+        context
+    ): Promise<Result>;
+}
+```
+
+Examples:
+
+```text
+search_project
+read_script
+generate_image
+generate_video
+generate_voice
+edit_timeline
+calculate_cost
+create_shot
+```
+
+Agents operate through tools rather than raw database access.
+
+---
+
+# 39. Model Context Protocol
+
+I'd also make the architecture compatible with:
+
+```text
+MCP
+```
+
+so external/internal services can eventually expose tools to StudioOS.
+
+But internally you still want your own permission and billing layer.
+
+---
+
+# 40. Billing technology
+
+For payments:
+
+```text
+Stripe
+```
+
+For actual usage:
+
+**our own ledger**.
+
+Don't make Stripe the source of truth for AI usage.
+
+Architecture:
+
+```text
+Provider response
+       ↓
+Usage Event
+       ↓
+Pricing Engine
+       ↓
+Usage Ledger
+       ↓
+Customer balance
+       ↓
+Stripe invoice/payment
+```
+
+---
+
+# 41. Billing storage
+
+Prefer immutable records:
+
+```text
+usage_events
+pricing_snapshots
+ledger_transactions
+credits
+invoices
+```
+
+Never update historical cost events.
+
+Instead append corrections.
+
+That makes billing auditable.
+
+---
+
+# 42. Analytics database
+
+Normal operational data:
+
+```text
+Postgres
+```
+
+But eventually hundreds of millions of events such as:
+
+```text
+generation started
+generation completed
+tokens
+seconds generated
+render time
+GPU seconds
+cost
+clicks
+exports
+```
+
+belong in:
+
+```text
+ClickHouse
+```
+
+So:
+
+```text
+Postgres = product state
+
+ClickHouse = analytics
+```
+
+---
+
+# 43. Observability
+
+Use:
+
+```text
+OpenTelemetry
+```
+
+for:
+
+```text
+traces
+metrics
+logs
+```
+
+plus:
+
+```text
+Prometheus
+Grafana
+Sentry
+```
+
+Then a failed generation can be traced:
+
+```text
+Frontend
+  ↓
+API
+  ↓
+Router
+  ↓
+Runway
+  ↓
+webhook
+  ↓
+media-worker
+```
+
+---
+
+# 44. Model observability
+
+Create a separate:
+
+```text
+AI Observability
+```
+
+system.
+
+Track:
+
+```text
+model
+provider
+latency
+TTFT
+input tokens
+output tokens
+video seconds
+cost
+failure rate
+retries
+quality feedback
+accepted/rejected
+```
+
+Eventually:
+
+```text
+Model A
+$0.24/generation
+63% accepted
+
+Model B
+$0.39/generation
+89% accepted
+```
+
+Then you can calculate:
+
+```text
+Cost per accepted output
+```
+
+---
+
+# 45. Security
+
+At minimum:
+
+```text
+OAuth/OIDC
+JWT sessions
+RBAC
+ABAC
+KMS encryption
+Secrets Manager
+signed URLs
+audit logs
+rate limits
+API scopes
+```
+
+Enterprise later:
+
+```text
+SAML
+SCIM
+SSO
+IP restrictions
+data residency
+BYOK
+private networking
+```
+
+---
+
+# 46. API keys
+
+AI provider keys should never be placed into frontend `.env`.
+
+Instead:
+
+```text
+Browser
+   ↓
+StudioOS API
+   ↓
+Secrets Manager
+   ↓
+Provider
+```
+
+Server-side environment variables might reference:
+
+```text
+OPENAI_API_KEY
+XAI_API_KEY
+GOOGLE_API_KEY
+ELEVENLABS_API_KEY
+RUNWAY_API_KEY
+...
+```
+
+but production should ideally fetch secrets through:
+
+```text
+AWS Secrets Manager
+GCP Secret Manager
+Vault
+```
+
+rather than ordinary files.
+
+---
+
+# 47. Authentication
+
+Options:
+
+```text
+Auth.js
+Clerk
+Auth0
+```
+
+For rapid initial development, I'd probably use:
+
+```text
+Clerk
+```
+
+or Auth0.
+
+For maximum ownership long term:
+
+```text
+Auth.js + enterprise identity service
+```
+
+But authentication itself is not where we should spend our first year.
+
+---
+
+# 48. Payments
+
+Use:
+
+```text
+Stripe Checkout
+Stripe Billing
+Stripe Tax
+```
+
+while StudioOS handles usage itself.
+
+Customer:
+
+```text
+subscription
++
+credits
++
+usage
+```
+
+---
+
+# 49. Infrastructure
+
+My preferred initial deployment:
+
+```text
+AWS
+```
+
+because this application needs:
+
+```text
+GPU
+object storage
+database
+CDN
+Kubernetes
+batch computing
+media processing
+```
+
+Example:
+
+```text
+Route53
+ ↓
+CloudFront
+ ↓
+ALB
+ ↓
+ECS/EKS
+ │
+ ├ API
+ ├ workers
+ └ render workers
+
+RDS PostgreSQL
+ElastiCache Redis
+S3
+Secrets Manager
+CloudWatch
+```
+
+---
+
+# 50. Do we need Kubernetes immediately?
+
+No.
+
+Initial:
+
+```text
+Next.js → Vercel
+API → ECS/Fargate
+Workers → ECS
+Postgres → RDS
+Redis → ElastiCache
+S3
+Temporal Cloud
+```
+
+This gets the company moving.
+
+At scale:
+
+```text
+EKS/Kubernetes
+```
+
+especially when custom GPU models start becoming important.
+
+---
+
+# 51. Terraform
+
+All infrastructure should be code:
+
+```text
+Terraform
+```
+
+Example:
+
+```text
+infrastructure/
+├── production/
+├── staging/
+├── dev/
+└── modules/
+```
+
+---
+
+# 52. Docker
+
+Every backend service:
+
+```text
+Docker
+```
+
+including:
+
+```text
+API
+AI worker
+media worker
+render worker
+fine-tuning worker
+custom inference
+```
+
+---
+
+# 53. CI/CD
+
+Use:
+
+```text
+GitHub
+GitHub Actions
+```
+
+Pipelines:
+
+```text
+lint
+typecheck
+test
+security scan
+build Docker
+integration test
+deploy staging
+smoke test
+production deploy
+```
+
+---
+
+# 54. Feature flags
+
+Use something like:
+
+```text
+PostHog
+```
+
+or:
+
+```text
+LaunchDarkly
+```
+
+Because model releases will constantly be staged:
+
+```text
+Runway model X
+enabled:
+  internal users 100%
+  beta users 20%
+  everyone 0%
+```
+
+---
+
+# 55. Product analytics
+
+I would use:
+
+```text
+PostHog
+```
+
+initially.
+
+Track things such as:
+
+```text
+generation started
+generation accepted
+generation discarded
+shot approved
+video exported
+commercial completed
+```
+
+Not user private creative content.
+
+---
+
+# 56. Image editor
+
+Browser side:
+
+```text
+Canvas
+WebGL/WebGPU
+WASM
+```
+
+Server:
+
+```text
+Python
+Pillow
+OpenCV
+PyTorch
+```
+
+AI:
+
+```text
+provider APIs
+Diffusers
+ControlNet-like models
+LoRAs
+```
+
+---
+
+# 57. Music editor
+
+Browser:
+
+```text
+Web Audio API
+AudioWorklet
+WASM DSP
+```
+
+UI:
+
+```text
+React
+Canvas/WebGL waveform
+```
+
+Server:
+
+```text
+FFmpeg
+Python
+librosa-like analysis
+GPU inference
+```
+
+Features such as:
+
+```text
+EQ
+compression
+reverb
+automation
+```
+
+should primarily work in-browser for preview.
+
+Final mastering happens server-side.
+
+---
+
+# 58. Audio engine
+
+Architecture:
+
+```text
+Audio clip
+ ↓
+Web Audio node graph
+ ↓
+Gain
+EQ
+Compressor
+Reverb
+Delay
+ ↓
+Master
+```
+
+With:
+
+```text
+AudioWorklet
+```
+
+for advanced DSP.
+
+---
+
+# 59. Proxies
+
+Every high-resolution asset produces:
+
+```text
+MASTER
+├── editing proxy
+├── thumbnail
+├── poster
+├── waveform
+├── audio proxy
+└── metadata
+```
+
+For example:
+
+```text
+4K ProRes
+ ↓
+720p H264 proxy
+```
+
+Browser edits proxy.
+
+Final render accesses original.
+
+---
+
+# 60. The architecture I would actually select
+
+If we were starting development **today**, my default stack would be:
+
+```text
+FRONTEND
+Next.js
+React
+TypeScript
+Tailwind
+Zustand
+TanStack Query
+
+EDITOR
+WebCodecs
+WebAudio
+AudioWorklet
+WebGL
+WebGPU
+WASM
+
+BACKEND
+NestJS
+TypeScript
+
+AI
+Python
+FastAPI
+PyTorch
+
+WORKFLOWS
+Temporal
+
+DATABASE
+PostgreSQL
+pgvector
+
+CACHE
+Redis
+
+STORAGE
+S3
+
+MEDIA
+FFmpeg
+
+RAG
+PostgreSQL + pgvector
+custom retrieval layer
+
+ANALYTICS
+ClickHouse
+
+REALTIME
+WebSocket
+Yjs
+
+PAYMENTS
+Stripe
+
+OBSERVABILITY
+OpenTelemetry
+Grafana
+Sentry
+
+INFRA
+AWS
+Docker
+Terraform
+
+LATER
+Kubernetes
+vLLM
+Triton
+GPU clusters
+```
+
+And importantly, **WebGPU would be treated as an enhancement rather than the only renderer**, because current browser support still isn't universal. ([MDN Web Docs][3])
+
+---
+
+# 61. Overall system
+
+```text
+                         ┌─────────────────────┐
+                         │      Next.js        │
+                         │      StudioOS       │
+                         └──────────┬──────────┘
+                                    │
+                     ┌──────────────┼──────────────┐
+                     │              │              │
+               Web Editor      WebSocket       REST API
+                     │                             │
+           WebCodecs/WebGPU                   NestJS
+                                                   │
+                         ┌─────────────────────────┼──────────────┐
+                         │                         │              │
+                   PostgreSQL                  Temporal        Redis
+                   + pgvector                     │
+                         │                         │
+                         │              ┌──────────┼──────────┐
+                         │              │          │          │
+                         │          AI Worker   Media      Render
+                         │           Python     FFmpeg     FFmpeg
+                         │              │                     │
+                         │        Model Router              GPU
+                         │              │
+                    Object Store        │
+                        S3       ┌───────┼───────────────────┐
+                                 │       │       │           │
+                              OpenAI   Google   xAI      Runway
+                                 │       │       │           │
+                            ElevenLabs Higgsfield fal   Custom Models
+```
+
+The three pieces I would consider **non-negotiable architectural foundations** are:
+
+**1. PostgreSQL + Project Graph**, because everything—stories, shots, assets, models, generations and costs—needs relationships.
+
+**2. Temporal + asynchronous job infrastructure**, because media generation cannot be designed like ordinary HTTP requests. Temporal's durable workflow model is particularly appropriate for jobs that span provider calls and multiple processing stages. ([Temporal Docs][4])
+
+**3. A provider-independent AI Gateway**, because OpenAI, Google, xAI, Runway, Higgsfield, ElevenLabs or today's best video model will not necessarily be tomorrow's best model.
+
+That combination lets us start primarily with external APIs as you wanted, while later replacing high-cost/high-volume operations with our own GPU-hosted models **without rebuilding the application**.
+
+[1]: https://nextjs.org/docs?utm_source=chatgpt.com "Next.js Docs | Next.js"
+[2]: https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API?utm_source=chatgpt.com "WebCodecs API - Web APIs | MDN"
+[3]: https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API?utm_source=chatgpt.com "WebGPU API - Web APIs | MDN"
+[4]: https://docs.temporal.io/?utm_source=chatgpt.com "Temporal Platform Documentation"
+[5]: https://github.com/pgvector/pgvector?utm_source=chatgpt.com "GitHub - pgvector/pgvector: Open-source vector similarity search for Postgres · GitHub"

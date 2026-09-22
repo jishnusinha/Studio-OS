@@ -1,0 +1,1521 @@
+For this product, top-notch UI/UX would come from **hiding the enormous technical complexity without removing professional control**.
+
+The wrong approach would be to put 50 models, 300 parameters, RAG, agents, editing, music, billing, assets and fine-tuning into menus and expect the user to understand the system.
+
+The right approach is:
+
+> **Simple when you enter. Powerful when you dig deeper. Context-aware everywhere. Nothing gets lost. AI is reversible. Cost is visible.**
+
+That direction is increasingly visible in current creative tools. Runway has moved toward an Agent-first entry point with projects, sessions, tools and workflows behind it; ElevenLabs' newly released Studio 4.0 generates video/image/voice/music/SFX directly into a timeline; and its Studio Agent works alongside manual editing rather than replacing it. ([Runway Help][1])
+
+# 1. One consistent spatial layout
+
+I would make almost every serious workspace follow the same physical layout:
+
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ STUDIO OS   Project: Nike Air Campaign        ⚡ $18.42   Share  ◉ │
+├──────────┬──────────────────────────────────────────────┬────────────┤
+│          │                                              │            │
+│ PROJECT  │                                              │ INSPECTOR  │
+│          │                                              │            │
+│ Story    │                                              │ Selected:  │
+│ Shots    │               MAIN CANVAS                    │ Shot 014   │
+│ Assets   │                                              │            │
+│ People   │          Video / Image / Script              │ Camera     │
+│ Places   │          Storyboard / Editor                 │ Lens       │
+│ Audio    │                                              │ Lighting   │
+│ Music    │                                              │ Model      │
+│          │                                              │ References │
+│          │                                              │ Advanced > │
+├──────────┴──────────────────────────────────────────────┴────────────┤
+│                                                                      │
+│                         TIMELINE                                     │
+│ V3 ────────────────────────────────────────────────────────────────  │
+│ V2 ───────────────■■■■■■─────────────■■■■■■────────────────────────  │
+│ V1 ─■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■  │
+│ VO ─────────████████████████───────────────────────────────────────  │
+│ MU ─═══════════════════════════════════════════════════════════════  │
+│                                                                      │
+├──────────────────────────────────────────────────────────────────────┤
+│ ✦ Ask StudioOS...       @Sarah  @Scene17       ⌘K                  │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+The user learns the layout once.
+
+The **center changes**, but the basic mental model doesn't.
+
+Story Room? Center becomes screenplay.
+
+Image Lab? Center becomes canvas.
+
+Cinema? Center becomes shot/storyboard viewer.
+
+Music? Center becomes DAW.
+
+Video Editor? Center becomes program monitor.
+
+The right inspector and bottom timeline remain familiar.
+
+ElevenLabs is already using this contextual-sidebar pattern in Studio: the right panel changes according to the selected narration/audio object, while its timeline remains the project-wide structural view. ([ElevenLabs][2])
+
+---
+
+# 2. Three UI depths: Quick / Director / Pro
+
+This may be one of the most important UX decisions.
+
+### Quick
+
+A beginner sees:
+
+```text
+What do you want to create?
+
+[ A cinematic perfume commercial...                  ]
+
+Reference       + Add
+Aspect ratio    16:9
+Duration        15 sec
+
+                   Generate
+```
+
+No sampler.
+
+No CFG.
+
+No model endpoint.
+
+No confusing settings.
+
+---
+
+### Director
+
+Click:
+
+**Director Controls**
+
+and suddenly:
+
+```text
+Character      Sarah
+Location       Paris Apartment
+Camera         ARRI-style
+Lens           50mm
+Aperture       f/2
+Movement       Slow dolly in
+Lighting       Window / golden hour
+Mood           Melancholic
+Tempo          Slow
+Continuity     Locked
+```
+
+This is approximately the design insight Higgsfield describes behind Cinema Studio: they deliberately reduced a huge cinematography vocabulary to a smaller group of controls that creators can understand, then made camera/lens choices visually meaningful. ([Higgsfield AI][3])
+
+---
+
+### Pro
+
+Click:
+
+```text
+Advanced ▾
+```
+
+and expose:
+
+```text
+Provider
+Model
+Model version
+Seed
+Reference weights
+Start frame
+End frame
+Resolution
+FPS
+Motion strength
+Provider-specific parameters
+Custom model
+LoRA
+Generation count
+Safety parameters
+API routing
+```
+
+Nothing gets converted when switching levels.
+
+Quick, Director and Pro are just different views of the **same underlying generation specification**.
+
+That is critical.
+
+---
+
+# 3. Make “Auto” the default model
+
+Never welcome a filmmaker with:
+
+```text
+Runway Gen...
+Veo...
+Kling...
+Seedance...
+WAN...
+Hailuo...
+Higgsfield...
+LTX...
+...
+```
+
+That's infrastructure, not creative UX.
+
+Instead:
+
+```text
+MODEL
+
+● Auto — Recommended
+○ Fast
+○ Cinematic
+○ Economy
+○ Manual
+```
+
+Hover Auto:
+
+```text
+Recommended model:
+Veo X
+
+Why:
+✓ character reference supported
+✓ native 16:9
+✓ good camera movement
+✓ within your budget
+
+Estimated: $0.64
+```
+
+Professionals can open Manual.
+
+---
+
+# 4. The Generate button should be intelligent
+
+Instead of:
+
+```text
+[ GENERATE ]
+```
+
+I would show:
+
+```text
+┌─────────────────────────────────┐
+│ Generate 4 takes          $1.84 │
+│ ~45–70 sec                       │
+└─────────────────────────────────┘
+```
+
+Click the arrow:
+
+```text
+Generate 1          ~$0.46
+Generate 2          ~$0.92
+Generate 4          ~$1.84
+
+Draft quality       ~$0.41
+Production           ~$1.84
+Hero quality         ~$4.20
+```
+
+This creates enormous trust.
+
+The creator always understands:
+
+**what will happen + how long-ish the operation is + what it costs.**
+
+---
+
+# 5. AI should manipulate the UI, not trap users in chat
+
+This is a major distinction.
+
+Bad AI UX:
+
+```text
+USER:
+Make the sequence more dramatic.
+
+AI:
+Here is your new video.
+```
+
+Better:
+
+```text
+USER:
+Make the sequence more dramatic.
+```
+
+Then the AI proposes:
+
+```text
+PROPOSED CHANGES
+
+Scene 12
++ shorten Shot 12A by 0.8s
++ replace Shot 12C with close-up
++ reduce score 4dB before reveal
++ add 12-frame pause
++ generate reaction shot
+
+Estimated generation cost: $0.82
+
+[Preview]
+[Apply]
+```
+
+Everything becomes **normal editable operations**.
+
+ElevenLabs' current Studio Agent follows a related direction: it can construct a timeline conversationally, but the creator can immediately take over manually and then hand control back to the agent. ([ElevenLabs][4])
+
+That's exactly the interaction philosophy I would extend throughout StudioOS.
+
+---
+
+# 6. “Ask anything” should exist everywhere
+
+Bottom command bar:
+
+```text
+✦ Ask StudioOS...
+```
+
+or keyboard:
+
+```text
+⌘ K
+```
+
+Examples:
+
+```text
+Find Scene 18
+
+Show Sarah's references
+
+Generate three alternative reactions
+
+Make this shot darker
+
+What camera did we use here?
+
+Replace this with Take 7
+
+Find every scene using this location
+
+Why did this generation cost $2.31?
+
+Turn this into a 15-sec vertical ad
+
+Create Hindi version
+
+Show continuity mistakes
+```
+
+The AI should automatically understand what is currently selected.
+
+If Shot 18 is selected:
+
+> “Make this darker.”
+
+means Shot 18.
+
+No need:
+
+> “Make Project 221 / Scene 18 / Shot 18 / generation 872 darker.”
+
+Context is everything.
+
+---
+
+# 7. Everything should support @ references
+
+Like:
+
+```text
+@Sarah
+@Apartment
+@Rolex
+@Scene17
+@Shot17B
+@BrandDNA
+@Script
+@ReferenceVideo
+```
+
+Example:
+
+```text
+@Sarah enters @Apartment wearing @Costume03.
+
+Lighting similar to @RefBladeRunnerLobby.
+```
+
+Runway's current home/Agent model similarly uses `@` to bring references into creative prompts, which is a good interaction pattern because users manipulate recognizable project objects rather than filesystem paths. ([Runway Help][1])
+
+Our version should take this considerably further because these references connect to the Project Graph.
+
+---
+
+# 8. The asset browser must feel exceptional
+
+Assets are going to explode.
+
+A feature film might contain:
+
+```text
+40,000 images
+8,000 videos
+2,000 audio files
+hundreds of prompts
+hundreds of characters/location references
+```
+
+Normal folders will fail.
+
+The browser should have:
+
+```text
+Search: "Sarah red jacket night rain"
+```
+
+and immediately show matching assets.
+
+Filters appear dynamically:
+
+```text
+TYPE
+Video
+Image
+Audio
+
+CHARACTER
+Sarah
+David
+
+SCENE
+17
+18
+19
+
+STATUS
+Approved
+Rejected
+Draft
+
+MODEL
+Veo
+Runway
+
+SOURCE
+Generated
+Uploaded
+
+RATING
+★★★★★
+```
+
+Runway currently organizes assets around projects, sessions, folders, recents and favorites; sessions specifically group related generations for comparison/iteration. ([Runway Help][5])
+
+We should evolve that into semantic production search.
+
+---
+
+# 9. Asset hover should be extremely useful
+
+Hover a video:
+
+```text
+┌─────────────────────────┐
+│                         │
+│       VIDEO PREVIEW     │
+│                         │
+├─────────────────────────┤
+│ Shot 17B • Take 04      │
+│ ★★★★★ Approved          │
+│                         │
+│ 00:08                   │
+│ Veo X                   │
+│ $0.71                   │
+│                         │
+│ [Use] [Compare] [...]   │
+└─────────────────────────┘
+```
+
+No opening pages unnecessarily.
+
+---
+
+# 10. Compare mode could become a killer UX feature
+
+Generation isn't deterministic.
+
+So comparison must be first-class.
+
+```text
+               SHOT 17B
+
+┌──────────────────┬──────────────────┐
+│                  │                  │
+│      TAKE 4      │      TAKE 7      │
+│                  │                  │
+├──────────────────┼──────────────────┤
+│ Runway           │ Veo              │
+│ $0.42            │ $0.69            │
+│ ★★★★             │ ★★★★★            │
+└──────────────────┴──────────────────┘
+
+     [Sync Playback]
+
+Camera      A ✓   B ✓
+Character   A △   B ✓
+Lip sync    A ✓   B ✓
+Continuity  A 83  B 96
+
+            [Choose B]
+```
+
+Allow:
+
+```text
+2-up
+3-up
+4-up
+```
+
+with synced playback.
+
+This would be enormously useful for AI video.
+
+---
+
+# 11. Never throw away generations
+
+Users become nervous if pressing Generate means their previous state disappears.
+
+Use a visible generation history:
+
+```text
+SHOT 18
+
+● v8   Current
+○ v7
+○ v6
+○ v5
+○ Original
+```
+
+Runway's current Edit Studio follows a similar useful pattern: iterations stay in a versions feed with the source accessible, and creators can continue working while other variations are processing. ([Runway Help][6])
+
+We should make versioning universal.
+
+---
+
+# 12. Branch instead of overwrite
+
+Instead of:
+
+```text
+Save
+```
+
+support:
+
+```text
+Create Variation
+Branch
+Replace
+```
+
+Example:
+
+```text
+Shot 17
+│
+├── Original
+│
+├── darker-lighting
+│
+├── close-up
+│
+└── director-choice
+```
+
+Same for:
+
+```text
+Script
+Music
+Commercial
+Timeline
+Campaign
+```
+
+---
+
+# 13. Visual lineage
+
+This could be extraordinary:
+
+```text
+       Character Reference
+               │
+               ↓
+          Image Gen #3
+               │
+        ┌──────┴──────┐
+        ↓             ↓
+    Video #1       Video #2
+                      │
+                      ↓
+                  Edit #4
+                      │
+                      ↓
+                  Timeline
+```
+
+Click any node and inspect:
+
+```text
+Prompt
+Model
+Seed
+Cost
+References
+Parent
+Children
+Used in
+```
+
+Users should never ask:
+
+> “Where did this image come from?”
+
+---
+
+# 14. Generate directly onto the timeline
+
+This is absolutely important.
+
+Current ElevenLabs Studio 4.0 now explicitly lets creators generate video, images, voices, music and SFX directly inside the project/timeline instead of generating elsewhere and importing afterward. ([ElevenLabs][7])
+
+For us:
+
+```text
+Timeline gap
+
+      [+]
+```
+
+Click:
+
+```text
+Generate
+Upload
+Record
+Use asset
+AI B-roll
+Transition
+Image
+Voice
+Music
+SFX
+```
+
+Or simply:
+
+> Generate a reaction shot here.
+
+StudioOS knows:
+
+```text
+duration = timeline gap
+previous frame
+next frame
+scene
+characters
+visual DNA
+camera DNA
+```
+
+That is much smoother than moving between modules.
+
+---
+
+# 15. Contextual right-click menus
+
+Professional users love right click.
+
+Right-click video clip:
+
+```text
+Regenerate
+Extend
+Replace
+Reframe
+Upscale
+Lip sync
+Stabilize
+Remove object
+Change background
+Generate B-roll
+Match color
+Extract audio
+Find similar
+Open source
+Show lineage
+```
+
+Right-click music:
+
+```text
+Extend
+Replace section
+Generate variation
+Separate stems
+Duck under dialogue
+Match duration
+```
+
+The interface becomes discoverable without permanent clutter.
+
+---
+
+# 16. The Inspector should be contextual
+
+Select video:
+
+```text
+VIDEO
+Transform
+Speed
+Opacity
+Color
+Mask
+AI
+```
+
+Select voice:
+
+```text
+VOICE
+Speaker
+Emotion
+Speed
+Stability
+Pronunciation
+Language
+```
+
+Select music:
+
+```text
+MUSIC
+Tempo
+Key
+Intensity
+Stems
+Structure
+```
+
+Select character:
+
+```text
+CHARACTER
+Identity
+Wardrobe
+Voice
+Acting
+Continuity
+```
+
+One sidebar.
+
+Different intelligence.
+
+---
+
+# 17. Progressive disclosure everywhere
+
+Instead of:
+
+```text
+Camera  ARRI
+Lens 50mm
+Aperture f2
+Sensor...
+ISO...
+Shutter...
+...
+```
+
+Initially:
+
+```text
+Camera Look
+[ Cinematic 50mm ▼ ]
+```
+
+Expand:
+
+```text
+Advanced Camera ▾
+```
+
+Now reveal everything.
+
+This reduces intimidation drastically.
+
+---
+
+# 18. Cinema Studio and Commercial Studio need different UX
+
+This is essential.
+
+## Cinema
+
+Navigation should revolve around:
+
+```text
+Story
+Characters
+Sequences
+Scenes
+Shots
+Storyboard
+Edit
+Sound
+Music
+Delivery
+```
+
+Main metadata:
+
+```text
+Scene
+Shot
+Take
+Continuity
+Character
+Location
+Story state
+```
+
+---
+
+## Commercial
+
+Navigation should revolve around:
+
+```text
+Brief
+Brand
+Product
+Concepts
+Ads
+Variants
+Localization
+Performance
+Exports
+```
+
+Main metadata:
+
+```text
+Campaign
+Audience
+Product
+Hook
+CTA
+Format
+Language
+Variant
+```
+
+They share technology.
+
+They should **not** share identical mental models.
+
+---
+
+# 19. Commercial Variant Matrix
+
+One of the strongest advertising screens could be:
+
+```text
+                         FORMAT
+                9:16      1:1      16:9
+
+US English       ✓         ✓         ✓
+Hindi            ✓         ✓         ✓
+Bengali          ✓         ✓         ✓
+German           ○         ○         ○
+Japanese         ○         ○         ○
+
+15 sec           ✓
+30 sec           ✓
+6 sec            ○
+```
+
+Select cells:
+
+```text
+Generate 9 missing variants
+Estimated $7.28
+```
+
+That is much better advertising UX than treating every output as an independent generation.
+
+---
+
+# 20. Cinema Scene Board
+
+For filmmaking:
+
+```text
+SCENE 24 — THE DISCOVERY
+
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│  24A     │ │  24B     │ │  24C     │ │  24D     │
+│   ▶      │ │   ▶      │ │   ▶      │ │   ▶      │
+│          │ │          │ │          │ │          │
+│ WS       │ │ CU Sarah │ │ Insert   │ │ CU David │
+│ 8 sec    │ │ 4 sec    │ │ 2 sec    │ │ 5 sec    │
+│ APPROVED │ │ v6       │ │ TODO     │ │ REVIEW   │
+└──────────┘ └──────────┘ └──────────┘ └──────────┘
+```
+
+Drag cards to reorder.
+
+Double-click enters shot generation.
+
+Press `T` opens takes.
+
+Press `C` checks continuity.
+
+Press `G` generates.
+
+Professional users become extraordinarily fast.
+
+---
+
+# 21. AI continuity should be visual
+
+Instead of:
+
+> Continuity error detected.
+
+Show:
+
+```text
+SHOT 24B                     SHOT 24C
+
+[ Sarah ]                    [ Sarah ]
+
+      ↓ Necklace                  ✕ Missing
+      ↓ Jacket                    ✓ Same
+      ↓ Hair                      ✓ Same
+      ↓ Eyeline                   ✓
+      ↓ Lighting                  △ slightly warmer
+
+Continuity 87%
+
+[Fix necklace only]
+```
+
+This turns AI from black-box critic into useful production assistant.
+
+---
+
+# 22. The job queue deserves its own beautiful UX
+
+AI production involves waiting.
+
+Don't show spinning loaders everywhere.
+
+Top corner:
+
+```text
+GENERATIONS  7
+
+✓ Shot 18A
+● Shot 18B        74%
+● Voice Sarah     31%
+◌ Music           queued
+! Product shot    retrying
+```
+
+Click:
+
+```text
+Generation Center
+```
+
+where users can:
+
+```text
+cancel
+reprioritize
+retry
+open result
+change provider
+inspect cost
+```
+
+Generation should feel like a **render farm**, not a website loading screen.
+
+---
+
+# 23. Users should continue working during generation
+
+Never lock the interface while an AI job runs.
+
+Current Runway Edit Studio explicitly allows creators to keep editing and queueing variations while another generation is processing. ([Runway Help][6])
+
+For our system:
+
+```text
+Generate
+```
+
+immediately creates a placeholder:
+
+```text
+Shot 17B
+Generating...
+████████░░
+```
+
+The creator keeps editing Scene 18.
+
+---
+
+# 24. Use optimistic interaction
+
+If someone changes:
+
+```text
+clip position
+volume
+name
+tag
+folder
+rating
+marker
+```
+
+reflect it immediately.
+
+Synchronize to backend afterward.
+
+Creative software must feel local even when cloud-based.
+
+---
+
+# 25. Performance is part of UX
+
+Targets I would set internally:
+
+```text
+UI response                    < 100ms
+Timeline interaction            60fps target
+Panel opening                   instant
+Scrubbing                       realtime
+Asset thumbnail                progressive
+Search first result             < 300ms target
+Command palette                instant
+```
+
+AI generation itself can take time.
+
+**The UI must never feel slow because AI is slow.**
+
+That's an important distinction.
+
+---
+
+# 26. Keyboard-first professional mode
+
+Examples:
+
+```text
+Space       Play/Pause
+J K L       Shuttle
+I O         In/Out
+B           Blade
+V           Select
+M           Marker
+G           Generate
+R           Regenerate
+C           Continuity
+⌘K          Command
+⌘P          Search
+⌘Z          Undo
+```
+
+Allow complete remapping.
+
+---
+
+# 27. Command palette
+
+`⌘K`
+
+Search:
+
+```text
+> generate reaction
+
+Generate reaction shot
+Generate image
+Generate voice
+Generate SFX
+```
+
+or:
+
+```text
+> sara
+
+Sarah — Character
+Sarah apartment scene — Scene 32
+Sarah Voice v2 — Voice
+```
+
+Everything becomes discoverable from one surface.
+
+---
+
+# 28. Undo should undo AI too
+
+This is critical.
+
+```text
+User:
+Make this sequence faster.
+```
+
+AI modifies:
+
+```text
+13 timeline operations
+```
+
+One:
+
+```text
+⌘Z
+```
+
+undoes the entire AI action.
+
+Then:
+
+```text
+⌘⇧Z
+```
+
+restores it.
+
+AI must obey the same editing semantics as humans.
+
+---
+
+# 29. “Before / After” everywhere
+
+For:
+
+```text
+color
+image edit
+video edit
+voice cleanup
+mastering
+upscale
+retouch
+```
+
+provide:
+
+```text
+Hold \ to compare original
+```
+
+or draggable divider:
+
+```text
+BEFORE   |   AFTER
+```
+
+Professional creators need immediate comparison.
+
+---
+
+# 30. Locking
+
+Any object can be:
+
+```text
+🔒 Lock identity
+🔒 Lock voice
+🔒 Lock costume
+🔒 Lock camera
+🔒 Lock timing
+🔒 Lock music
+```
+
+AI commands respect locks.
+
+Example:
+
+> Make the scene more dramatic but **don't change Sarah or the camera**.
+
+The UI shows:
+
+```text
+Sarah       🔒
+Camera      🔒
+Music       editable
+Lighting    editable
+Timing      editable
+```
+
+This would dramatically increase trust.
+
+---
+
+# 31. Show why AI did something
+
+If Auto selected a model:
+
+```text
+Why this model?
+```
+
+If AI changed an edit:
+
+```text
+Why this change?
+```
+
+If continuity flags something:
+
+```text
+Why?
+```
+
+If price changed:
+
+```text
+Why $1.84?
+```
+
+The platform should always be inspectable.
+
+---
+
+# 32. Don't expose prompts as the only truth
+
+Users should see:
+
+```text
+Creative Direction
+```
+
+not:
+
+```text
+Prompt
+```
+
+because behind it may exist:
+
+```text
+user direction
++
+story context
++
+character DNA
++
+shot DNA
++
+visual DNA
++
+model optimization
+```
+
+Users can open:
+
+```text
+View compiled prompt
+```
+
+in Pro mode.
+
+---
+
+# 33. Mobile should not try to be CapCut Desktop
+
+This should be **desktop-first**.
+
+Mobile should specialize in:
+
+```text
+Review
+Comment
+Approve
+Reject
+Generate simple variants
+Upload reference
+Record voice/reference
+Check jobs
+Share
+```
+
+Tablet can support storyboard and light editing.
+
+Full Cinema/DAW/NLE remains desktop.
+
+Trying to force the complete interface onto a phone will damage both versions.
+
+---
+
+# 34. Onboarding should create something immediately
+
+Don't start with:
+
+```text
+What's your company?
+What's your role?
+How large is your team?
+...
+```
+
+Instead:
+
+```text
+What are you making?
+
+[Cinematic Film]
+[Commercial]
+[Music Video]
+[Social Ad]
+[Start Empty]
+```
+
+Then:
+
+```text
+Describe it / upload something.
+```
+
+Within the first session, the user should see an actual useful creation.
+
+---
+
+# 35. Templates should teach workflows, not decorate dashboards
+
+A template isn't:
+
+> “Cool Cyberpunk.”
+
+It should be:
+
+```text
+15-sec Product Launch
+
+Brief
+  ↓
+Product references
+  ↓
+3 Concepts
+  ↓
+Storyboard
+  ↓
+6 Shots
+  ↓
+Voice
+  ↓
+Music
+  ↓
+Edit
+  ↓
+9:16 + 1:1 + 16:9
+```
+
+That teaches the user what the system can actually do.
+
+Runway's Workflows currently take a similar node-based approach for reusable generative pipelines, including branching and chaining models. ([Runway Help][8])
+
+---
+
+# 36. One feature I would obsess over: Focus Mode
+
+Press:
+
+```text
+Tab
+```
+
+and everything disappears:
+
+```text
+┌─────────────────────────────────────────────┐
+│                                             │
+│                                             │
+│                  VIDEO                     │
+│                                             │
+│                                             │
+└─────────────────────────────────────────────┘
+                     ▶
+```
+
+Move mouse:
+
+controls appear.
+
+Press Tab:
+
+full studio returns.
+
+Creative tools can become exhausting because they permanently display hundreds of controls.
+
+Great UX needs moments of visual silence.
+
+---
+
+# 37. Another major feature: Context Ribbon
+
+At the top:
+
+```text
+Film / Sequence 03 / Scene 17 / Shot 17B / Take 04
+```
+
+Every level is clickable.
+
+This makes large productions navigable.
+
+Commercial:
+
+```text
+Nike / Air Max / Summer / US / 15sec / 9:16 / Variant 04
+```
+
+Same component.
+
+Different context hierarchy.
+
+---
+
+# 38. Status should be visually obvious
+
+Use a universal production state:
+
+```text
+DRAFT
+GENERATING
+READY
+REVIEW
+CHANGES
+APPROVED
+LOCKED
+FINAL
+```
+
+The state should appear consistently on:
+
+```text
+Shots
+Images
+Voice
+Music
+Timelines
+Commercial variants
+```
+
+Production teams will understand the project without asking in Slack.
+
+---
+
+# 39. And make cost a subtle UI primitive
+
+Don't turn the entire product into a financial dashboard.
+
+Small indicators:
+
+```text
+Shot 17B
+$0.84
+```
+
+Hover:
+
+```text
+4 generations   $0.68
+Upscale         $0.11
+Storage         $0.01
+Audio           $0.04
+```
+
+Project header:
+
+```text
+Project spend
+$237 / $500
+```
+
+Only when relevant.
+
+---
+
+# 40. The overall UX philosophy
+
+I would define the product internally with ten laws:
+
+1. **The project is always the context.**
+2. **Nothing generated gets lost.**
+3. **AI actions are editable and reversible.**
+4. **Simple controls appear before technical controls.**
+5. **Users think in shots, scenes, characters, products and music—not API endpoints.**
+6. **Model selection is automatic unless the creator wants control.**
+7. **Generation happens where the asset will be used.**
+8. **Cost is known before expensive actions.**
+9. **Everything can be found through search or ⌘K.**
+10. **Manual and AI workflows are never separate worlds.**
+
+That last point may matter the most.
+
+The emerging direction in current creative products supports it: ElevenLabs' newest Studio brings multiple generation modalities directly into a common timeline, its Agent deliberately coexists with manual editing, Runway organizes agent/tool/workflow interactions inside project context, and Higgsfield has focused its filmmaking UI on human cinematography concepts rather than exposing raw model complexity. ([ElevenLabs][7])
+
+If we execute that well, **StudioOS shouldn't feel like “20 AI tools integrated into a dashboard.”**
+
+It should feel more like:
+
+> **a filmmaking/commercial-production environment that simply happens to have dozens of AI models working underneath it.**
+
+That's the difference between an impressive AI demo and a product professionals could live in for eight hours a day.
+
+[1]: https://help.runwayml.com/hc/en-us/articles/24298206897043-Navigating-Runway?utm_source=chatgpt.com "Navigating Runway – Runway"
+[2]: https://elevenlabs.io/docs/eleven-creative/products/studio?utm_source=chatgpt.com "ElevenCreative Studio overview | ElevenLabs Documentation"
+[3]: https://higgsfield.ai/blog/how-we-built-cinema-studio?utm_source=chatgpt.com "Inside Higgsfield #1: How We Built Cinema Studio"
+[4]: https://elevenlabs.io/blog/introducing-studio-agents?utm_source=chatgpt.com "Introducing Studio Agents"
+[5]: https://help.runwayml.com/hc/en-us/articles/52474899121555-Introduction-to-Projects?utm_source=chatgpt.com "Introduction to Projects – Runway"
+[6]: https://help.runwayml.com/hc/en-us/articles/51683104370451-Creating-with-Edit-Studio?utm_source=chatgpt.com "Creating with Edit Studio – Runway"
+[7]: https://elevenlabs.io/blog/introducing-studio-4?utm_source=chatgpt.com "Studio 4.0: the AI-native video editor in ElevenCreative"
+[8]: https://help.runwayml.com/hc/en-us/articles/45763528999699-Introduction-to-Workflows?utm_source=chatgpt.com "Introduction to Workflows – Runway"

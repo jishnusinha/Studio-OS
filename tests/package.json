@@ -1,0 +1,30 @@
+{
+  "name": "@studio-os/tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "echo \"no build\"",
+    "lint": "echo \"lint ok\"",
+    "clean": "echo \"clean\""
+  },
+  "dependencies": {
+    "@studio-os/auth": "workspace:*",
+    "@studio-os/billing": "workspace:*",
+    "@studio-os/contracts": "workspace:*",
+    "@studio-os/gateway": "workspace:*",
+    "@studio-os/graph": "workspace:*",
+    "@studio-os/media-synth": "workspace:*",
+    "@studio-os/observability": "workspace:*",
+    "@studio-os/provenance": "workspace:*",
+    "@studio-os/providers": "workspace:*",
+    "@studio-os/timeline": "workspace:*",
+    "@studio-os/workflow": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
