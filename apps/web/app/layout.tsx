@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${outfit.variable} ${jetbrains.variable} dark`}>
-      <body className="studio-theme bg-cinema-bg text-cinema-text antialiased">
+      <body className="bg-cinema-bg text-cinema-text antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>
