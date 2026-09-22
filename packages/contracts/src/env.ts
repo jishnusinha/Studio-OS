@@ -10,10 +10,13 @@ export const EnvSchema = z.object({
   JWT_SECRET: z.string().min(32),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
-  S3_ENDPOINT: z.string().url(),
-  S3_ACCESS_KEY: z.string().min(1),
-  S3_SECRET_KEY: z.string().min(1),
-  S3_BUCKET: z.string().min(1),
+  /** `s3` = MinIO/S3 cloud (or self-hosted). `local` = filesystem under LOCAL_MEDIA_ROOT. */
+  STORAGE_BACKEND: z.enum(['s3', 'local']).default('s3'),
+  LOCAL_MEDIA_ROOT: z.string().default('./data/media'),
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_ACCESS_KEY: z.string().optional(),
+  S3_SECRET_KEY: z.string().optional(),
+  S3_BUCKET: z.string().optional(),
   S3_REGION: z.string().default('us-east-1'),
   S3_FORCE_PATH_STYLE: z
     .string()
@@ -43,7 +46,15 @@ export const EnvSchema = z.object({
 export type Env = z.infer<typeof EnvSchema>;
 
 export function parseEnv(raw: Record<string, string | undefined> = process.env): Env {
-  return EnvSchema.parse(raw);
+  const env = EnvSchema.parse(raw);
+  if (env.STORAGE_BACKEND === 's3') {
+    if (!env.S3_ENDPOINT || !env.S3_ACCESS_KEY || !env.S3_SECRET_KEY || !env.S3_BUCKET) {
+      throw new Error(
+        'STORAGE_BACKEND=s3 requires S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, and S3_BUCKET',
+      );
+    }
+  }
+  return env;
 }
 
 export const ModelParameterSchema = z.object({
@@ -123,5 +134,8 @@ export const PresignUploadResponseSchema = z.object({
   uploadUrl: z.string().url(),
   key: z.string(),
   expiresAt: z.coerce.date(),
+  /** When true, client PUTs raw bytes (S3). Local mode also uses PUT to the API upload URL. */
+  directPut: z.boolean().default(true),
+  storageBackend: z.enum(['s3', 'local']).optional(),
 });
 export type PresignUploadResponse = z.infer<typeof PresignUploadResponseSchema>;

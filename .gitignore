@@ -16,6 +16,7 @@ docker-data
 tmp
 uploads
 .studioos
+data/media
 *.mp4
 !fixtures/**
 .vscode/*

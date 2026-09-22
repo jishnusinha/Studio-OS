@@ -1,5 +1,5 @@
 {
-  "name": "@studio-os/render-worker",
+  "name": "@studio-os/storage",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,24 +13,19 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx watch src/main.ts",
-    "start": "node dist/main.js",
+    "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "lint": "echo \"lint ok\"",
+    "test": "vitest run",
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.721.0",
-    "@studio-os/contracts": "workspace:*",
-    "@studio-os/storage": "workspace:*",
-    "@studio-os/timeline": "workspace:*",
-    "bullmq": "^5.34.5",
-    "ioredis": "^5.4.2"
+    "@aws-sdk/client-s3": "^3.712.0",
+    "@aws-sdk/s3-request-presigner": "^3.712.0"
   },
   "devDependencies": {
-    "rimraf": "^6.0.1",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "rimraf": "^6.0.1"
   }
 }

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Inject, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthGuard, type AuthedRequest } from '../auth/auth.guard.js';
 import { ProjectAccessGuard, ProjectScope, RequireAction } from '../common/index.js';
 import { TimelineService } from './timeline.service.js';
@@ -28,6 +29,25 @@ export class TimelineController {
   @ProjectScope({ from: 'param', name: 'id', via: 'timeline' })
   get(@Param('id') id: string) {
     return this.timelines.getById(id);
+  }
+
+  @Get('timelines/:id/preview')
+  @UseGuards(ProjectAccessGuard)
+  @ProjectScope({ from: 'param', name: 'id', via: 'timeline' })
+  async preview(
+    @Param('id') id: string,
+    @Query('t') tRaw: string | undefined,
+    @Query('w') wRaw: string | undefined,
+    @Query('h') hRaw: string | undefined,
+    @Res() res: Response,
+  ) {
+    const t = Number(tRaw ?? 0);
+    const w = wRaw ? Number(wRaw) : undefined;
+    const h = hRaw ? Number(hRaw) : undefined;
+    const frame = await this.timelines.previewFrame(id, Number.isFinite(t) ? t : 0, w, h);
+    res.setHeader('Content-Type', frame.contentType);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(frame.buffer);
   }
 
   @Post('timelines/:id/commands')

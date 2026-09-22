@@ -8,6 +8,7 @@ import {
   S3Client,
   type S3ClientConfig,
 } from '@aws-sdk/client-s3';
+import { createStorageBackend, type StorageBackend } from '@studio-os/storage';
 import { Worker, type Job } from 'bullmq';
 import { eq, desc } from 'drizzle-orm';
 import { Redis } from 'ioredis';
@@ -48,6 +49,7 @@ export interface ProcessMediaJobOptions {
   upload?: boolean;
   /** Skip DB persistence (tests). */
   persist?: boolean;
+  storage?: StorageBackend;
 }
 
 function createS3FromEnv(): S3Client | null {
@@ -180,14 +182,40 @@ export async function processMediaJob(
   const workDir = options.workDir ?? join(process.cwd(), '.tmp', 'media', data.assetId);
   await fs.mkdir(workDir, { recursive: true });
 
-  const s3 = options.s3 ?? createS3FromEnv();
+  let storage: StorageBackend | null = options.storage ?? null;
+  try {
+    storage ??= createStorageBackend({ env: process.env });
+  } catch {
+    storage = null;
+  }
+
+  const s3 = options.s3 ?? (storage?.kind === 's3' ? createS3FromEnv() : null);
   const bucket = options.bucket ?? process.env.S3_BUCKET ?? 'studio-os';
-  const shouldUpload = options.upload !== false && s3 !== null;
+  const shouldUpload = options.upload !== false && (storage !== null || s3 !== null);
 
   let inputPath: string;
   if (data.storageKey.startsWith('mock://')) {
     const materialized = await materializeMockUri(data.storageKey, workDir);
     inputPath = materialized.path;
+  } else if (storage) {
+    const ext = data.storageKey.includes('.')
+      ? data.storageKey.slice(data.storageKey.lastIndexOf('.'))
+      : '.bin';
+    inputPath = join(workDir, `source${ext}`);
+    try {
+      const direct = storage.localPath?.(data.storageKey);
+      if (direct) {
+        inputPath = direct;
+      } else {
+        await storage.materialize(data.storageKey, inputPath);
+      }
+    } catch (err) {
+      console.warn(
+        `[media-worker] storage materialize failed for ${data.storageKey}, writing placeholder:`,
+        err instanceof Error ? err.message : err,
+      );
+      await fs.writeFile(inputPath, `placeholder for ${data.storageKey}\n`, 'utf8');
+    }
   } else if (s3) {
     const ext = data.storageKey.includes('.')
       ? data.storageKey.slice(data.storageKey.lastIndexOf('.'))
@@ -243,7 +271,19 @@ export async function processMediaJob(
   const waveformKey = `${data.projectId}/${data.assetId}/waveform.json`;
   const spriteKey = `${data.projectId}/${data.assetId}/sprite.jpg`;
 
-  if (shouldUpload && s3) {
+  if (shouldUpload && storage) {
+    try {
+      await storage.put(proxyKey, await fs.readFile(proxyPath), 'video/mp4');
+      await storage.put(thumbKey, await fs.readFile(posterPath), 'image/jpeg');
+      await storage.put(waveformKey, await fs.readFile(waveformPath), 'application/json');
+      await storage.put(spriteKey, await fs.readFile(spritePath), 'image/jpeg');
+    } catch (err) {
+      console.warn(
+        '[media-worker] upload failed:',
+        err instanceof Error ? err.message : err,
+      );
+    }
+  } else if (shouldUpload && s3) {
     try {
       await uploadToS3(s3, bucket, proxyKey, proxyPath, 'video/mp4');
       await uploadToS3(s3, bucket, thumbKey, posterPath, 'image/jpeg');

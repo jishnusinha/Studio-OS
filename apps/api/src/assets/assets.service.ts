@@ -5,9 +5,7 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { PresignUploadRequestSchema, type Env } from '@studio-os/contracts';
+import { PresignUploadRequestSchema } from '@studio-os/contracts';
 import {
   assets,
   assetRelations,
@@ -22,31 +20,20 @@ import {
   traverseDescendants,
   type Relation,
 } from '@studio-os/graph';
+import type { StorageBackend } from '@studio-os/storage';
 import { desc, eq, inArray, or } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
-import { ENV } from '../config/env.js';
 import { DB } from '../db/db.tokens.js';
 import { MediaQueueService } from '../queue/media-queue.service.js';
+import { STORAGE } from '../storage/storage.module.js';
 
 @Injectable()
 export class AssetsService {
-  private readonly s3: S3Client;
-
   constructor(
     @Inject(DB) private readonly db: Database,
-    @Inject(ENV) private readonly env: Env,
+    @Inject(STORAGE) private readonly storage: StorageBackend,
     @Optional() private readonly mediaQueue?: MediaQueueService,
-  ) {
-    this.s3 = new S3Client({
-      region: env.S3_REGION,
-      endpoint: env.S3_ENDPOINT,
-      forcePathStyle: env.S3_FORCE_PATH_STYLE,
-      credentials: {
-        accessKeyId: env.S3_ACCESS_KEY,
-        secretAccessKey: env.S3_SECRET_KEY,
-      },
-    });
-  }
+  ) {}
 
   async presign(userId: string, body: unknown) {
     const parsed = PresignUploadRequestSchema.safeParse(body);
@@ -68,7 +55,7 @@ export class AssetsService {
         sizeBytes: data.sizeBytes,
         status: 'draft',
         createdBy: userId,
-        metadata: { uploadKey: key },
+        metadata: { uploadKey: key, storageBackend: this.storage.kind },
       })
       .returning();
 
@@ -80,22 +67,15 @@ export class AssetsService {
       storageKey: key,
     });
 
-    const command = new PutObjectCommand({
-      Bucket: this.env.S3_BUCKET,
-      Key: key,
-      ContentType: data.contentType,
-      ContentLength: data.sizeBytes,
-    });
-
-    const expiresIn = 3600;
-    const uploadUrl = await getSignedUrl(this.s3, command, { expiresIn });
-    const expiresAt = new Date(Date.now() + expiresIn * 1000);
+    const signed = await this.storage.presignPut(key, data.contentType, data.sizeBytes, 3600);
 
     return {
       assetId: asset.id,
-      uploadUrl,
+      uploadUrl: signed.uploadUrl,
       key,
-      expiresAt,
+      expiresAt: signed.expiresAt,
+      directPut: signed.directPut,
+      storageBackend: this.storage.kind,
     };
   }
 
@@ -111,14 +91,8 @@ export class AssetsService {
       .limit(1);
 
     if (version?.storageKey) {
-      try {
-        await this.s3.send(
-          new HeadObjectCommand({
-            Bucket: this.env.S3_BUCKET,
-            Key: version.storageKey,
-          }),
-        );
-      } catch {
+      const head = await this.storage.head(version.storageKey);
+      if (!head.exists) {
         throw new BadRequestException('Upload not found in object storage');
       }
     }
@@ -129,7 +103,6 @@ export class AssetsService {
       .where(eq(assets.id, assetId))
       .returning();
 
-    // Enqueue media-ingest for proxy / thumbnail / fingerprint pipeline
     if (version?.storageKey && this.mediaQueue) {
       await this.mediaQueue.enqueue({
         assetId,
@@ -239,12 +212,8 @@ export class AssetsService {
 
     if (!key) throw new NotFoundException(`Variant ${variant} not available`);
 
-    const url = await getSignedUrl(
-      this.s3,
-      new GetObjectCommand({ Bucket: this.env.S3_BUCKET, Key: key }),
-      { expiresIn: 3600 },
-    );
-    return { url, variant, key, expiresIn: 3600 };
+    const signed = await this.storage.presignGet(key, 3600);
+    return { url: signed.url, variant, key, expiresIn: 3600 };
   }
 
   async getLineage(assetId: string) {
@@ -386,14 +355,10 @@ export class AssetsService {
       throw new NotFoundException('Deliverable not ready — no storage key yet');
     }
 
-    const url = await getSignedUrl(
-      this.s3,
-      new GetObjectCommand({ Bucket: this.env.S3_BUCKET, Key: storageKey }),
-      { expiresIn: 3600 },
-    );
+    const signed = await this.storage.presignGet(storageKey, 3600);
 
     return {
-      url,
+      url: signed.url,
       deliverableId,
       status: row.status,
       preset: row.preset,

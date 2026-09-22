@@ -190,12 +190,61 @@ function effectFilters(effects: Effect[]): string[] {
       case 'audio_gain':
         // no-op for video graph (mask/multicam need compositor; audio_gain applied on audio)
         break;
+      case 'blur': {
+        const sigma = Number(p.sigma ?? p.amount ?? 5);
+        parts.push(`gblur=sigma=${sigma}`);
+        break;
+      }
+      case 'lut': {
+        if (typeof p.lut === 'string' && p.lut.trim()) {
+          parts.push(`lut3d=${p.lut.trim()}`);
+        } else {
+          parts.push('eq=saturation=1.15:contrast=1.05');
+        }
+        break;
+      }
+      case 'chroma_key': {
+        const color = typeof p.color === 'string' ? p.color : '0x00FF00';
+        const similarity = Number(p.similarity ?? 0.2);
+        const blend = Number(p.blend ?? 0.1);
+        parts.push(`chromakey=${color}:${similarity}:${blend}`);
+        break;
+      }
+      case 'freeze': {
+        // freeze is handled via sourceIn===sourceOut + tpad; keep as no-op filter marker
+        break;
+      }
       default:
         // Unknown effect types intentionally skipped (no-op)
         break;
     }
   }
   return parts;
+}
+
+/** Linear interpolate keyframed numeric properties at local clip time. */
+export function interpolateKeyframe(
+  clip: Clip,
+  property: string,
+  localTime: number,
+  fallback: number,
+): number {
+  const frames = clip.keyframes
+    .filter((k) => k.property === property && typeof k.value === 'number')
+    .sort((a, b) => a.time - b.time);
+  if (!frames.length) return fallback;
+  if (localTime <= frames[0]!.time) return Number(frames[0]!.value);
+  const last = frames[frames.length - 1]!;
+  if (localTime >= last.time) return Number(last.value);
+  for (let i = 0; i < frames.length - 1; i++) {
+    const a = frames[i]!;
+    const b = frames[i + 1]!;
+    if (localTime >= a.time && localTime <= b.time) {
+      const t = (localTime - a.time) / Math.max(0.0001, b.time - a.time);
+      return Number(a.value) + (Number(b.value) - Number(a.value)) * t;
+    }
+  }
+  return fallback;
 }
 
 function audioGainFromClip(clip: Clip): number {
@@ -293,11 +342,15 @@ export function compileTimelineToFfmpegArgs(
     const start = clip.sourceIn;
     const end = clip.sourceOut;
     const speed = clip.speed || 1;
+    const reverse = Boolean(clip.reverse);
     const setpts = speed !== 1 ? `setpts=(PTS-STARTPTS)/${speed}` : 'setpts=PTS-STARTPTS';
+    const opacity = interpolateKeyframe(clip, 'opacity', 0, clip.transform.opacity ?? 1);
+    const transform = { ...clip.transform, opacity };
     const chain = [
       `trim=start=${start}:end=${end}`,
       setpts,
-      ...transformFilters(clip.transform, width, height),
+      ...(reverse ? ['reverse'] : []),
+      ...transformFilters(transform, width, height),
       ...effectFilters(clip.effects),
       'format=rgba',
     ];
@@ -322,10 +375,38 @@ export function compileTimelineToFfmpegArgs(
 
   if (options.maxDurationSec != null) {
     filterParts.push(
-      `[vout_raw]trim=duration=${options.maxDurationSec},setpts=PTS-STARTPTS,format=yuv420p[vout]`,
+      `[vout_raw]trim=duration=${options.maxDurationSec},setpts=PTS-STARTPTS,format=yuv420p[vout_pre]`,
     );
   } else {
-    filterParts.push(`[vout_raw]format=yuv420p[vout]`);
+    filterParts.push(`[vout_raw]format=yuv420p[vout_pre]`);
+  }
+
+  // Title / caption burn-in
+  const titleClips = timeline.tracks
+    .filter((t) => t.type === 'title' && !t.muted)
+    .flatMap((t) => t.clips)
+    .filter((c) => c.title?.text);
+  if (titleClips.length) {
+    let titleChain = '[vout_pre]';
+    titleClips.forEach((clip, ti) => {
+      const title = clip.title!;
+      const escaped = title.text.replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "\\'");
+      const xExpr =
+        title.align === 'left'
+          ? `${Math.round(title.x * width)}`
+          : title.align === 'right'
+            ? `w-tw-${Math.round((1 - title.x) * width)}`
+            : `(w-tw)/2`;
+      const yExpr = Math.round(title.y * height);
+      const enable = `between(t,${clip.timelineStart},${clip.timelineStart + clipDuration(clip)})`;
+      const out = ti === titleClips.length - 1 ? '[vout]' : `[t${ti}]`;
+      filterParts.push(
+        `${titleChain}drawtext=text='${escaped}':fontsize=${title.fontSize}:fontcolor=${title.color}:x=${xExpr}:y=${yExpr}:enable='${enable}'${out}`,
+      );
+      titleChain = out;
+    });
+  } else {
+    filterParts.push(`[vout_pre]null[vout]`);
   }
 
   // Audio mix — per-track clips + linked audio via amix
@@ -448,4 +529,49 @@ export async function dumpFfmpegArgs(args: string[], besidePath: string): Promis
   const path = join(dirname(besidePath), `${besidePath.split(/[/\\]/).pop()}.ffmpeg.txt`);
   await fs.writeFile(path, ['ffmpeg', ...args].join(' '), 'utf8');
   return path;
+}
+
+/**
+ * Render a single JPEG frame of the composed timeline at time `t` seconds.
+ */
+export async function renderPreviewFrame(
+  timeline: Timeline,
+  assetPathMap: Record<string, string>,
+  t: number,
+  outputPath: string,
+  dims?: { width?: number; height?: number },
+): Promise<{ outputPath: string; mock: boolean }> {
+  const width = dims?.width ?? Math.min(960, timeline.width || 960);
+  const height = dims?.height ?? Math.round((width * (timeline.height || 1080)) / (timeline.width || 1920));
+  const tempMp4 = `${outputPath}.tmp.mp4`;
+  const result = await renderTimeline(timeline, {
+    assetPathMap,
+    outputPath: tempMp4,
+    preset: '16:9',
+  });
+
+  await fs.mkdir(dirname(outputPath), { recursive: true });
+
+  if (result.mock || !(await hasFfmpeg())) {
+    // 1x1 JPEG stub
+    const stub = Buffer.from(
+      '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGcP//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//Z',
+      'base64',
+    );
+    await fs.writeFile(outputPath, stub);
+    return { outputPath, mock: true };
+  }
+
+  try {
+    await execFileAsync(
+      'ffmpeg',
+      ['-y', '-ss', String(Math.max(0, t)), '-i', tempMp4, '-frames:v', '1', '-q:v', '3', '-s', `${width}x${height}`, outputPath],
+      { maxBuffer: 10 * 1024 * 1024 },
+    );
+    return { outputPath, mock: false };
+  } catch {
+    const stub = Buffer.from('preview-unavailable');
+    await fs.writeFile(outputPath, stub);
+    return { outputPath, mock: true };
+  }
 }

@@ -105,6 +105,15 @@ pnpm --filter @studio-os/web dev
 
 Open http://localhost:3000
 
+### Storage modes
+
+| Mode | Env | Media location |
+|------|-----|----------------|
+| **Cloud** (default) | `STORAGE_BACKEND=s3` + `S3_*` | MinIO / S3 |
+| **Local** | `STORAGE_BACKEND=local` + `LOCAL_MEDIA_ROOT=./data/media` | Filesystem on this machine |
+
+Local mode does not require MinIO. The Edit page shows a Cloud/Local chip from `GET /system/storage`.
+
 ### 5. Tests
 
 ```bash

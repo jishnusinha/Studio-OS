@@ -388,6 +388,11 @@ export const timelinesApi = {
       method: 'POST',
       body: body ?? {},
     }),
+  previewUrl: (id: string, t: number, w = 960) => {
+    const base =
+      (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:4000';
+    return `${base}/timelines/${id}/preview?t=${encodeURIComponent(String(t))}&w=${w}`;
+  },
 };
 
 export const assetsApi = {
@@ -399,6 +404,49 @@ export const assetsApi = {
   lineage: (assetId: string) => api<LineagePayload>(`/assets/${assetId}/lineage`),
   updateStale: (assetId: string) =>
     api<Record<string, unknown>>(`/assets/${assetId}/lineage/update-stale`, { method: 'POST' }),
+  presign: (body: {
+    projectId: string;
+    filename: string;
+    contentType: string;
+    sizeBytes: number;
+    assetType: 'image' | 'video' | 'audio' | 'document' | 'script' | 'other';
+  }) =>
+    api<{
+      assetId: string;
+      uploadUrl: string;
+      key: string;
+      expiresAt: string;
+      directPut?: boolean;
+      storageBackend?: string;
+    }>('/assets/presign', { method: 'POST', body }),
+  complete: (assetId: string) => api<AssetDto>(`/assets/${assetId}/complete`, { method: 'POST' }),
+  uploadFile: async (
+    projectId: string,
+    file: File,
+    assetType: 'image' | 'video' | 'audio' | 'document' | 'script' | 'other' = 'video',
+  ) => {
+    const signed = await assetsApi.presign({
+      projectId,
+      filename: file.name,
+      contentType: file.type || 'application/octet-stream',
+      sizeBytes: file.size,
+      assetType,
+    });
+    const put = await fetch(signed.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    });
+    if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+    return assetsApi.complete(signed.assetId);
+  },
+};
+
+export const systemApi = {
+  storage: () =>
+    api<{ backend: 's3' | 'local'; label: string; localMediaRoot: string | null; s3Bucket: string | null }>(
+      '/system/storage',
+    ),
 };
 
 export const deliverablesApi = {

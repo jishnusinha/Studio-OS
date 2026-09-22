@@ -1,6 +1,8 @@
 export {
   compileTimelineToFfmpegArgs,
   renderTimeline,
+  renderPreviewFrame,
+  interpolateKeyframe,
   writeEdlMaster,
   dumpFfmpegArgs,
   type RenderPreset,

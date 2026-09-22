@@ -83,6 +83,9 @@ importers:
       '@studio-os/script-parse':
         specifier: workspace:*
         version: link:../../packages/script-parse
+      '@studio-os/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@studio-os/timeline':
         specifier: workspace:*
         version: link:../../packages/timeline
@@ -434,6 +437,25 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.4)
 
+  packages/storage:
+    dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.712.0
+        version: 3.1137.0
+      '@aws-sdk/s3-request-presigner':
+        specifier: ^3.712.0
+        version: 3.1137.0
+    devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.1.3
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.4)
+
   packages/timeline:
     dependencies:
       '@studio-os/contracts':
@@ -574,6 +596,9 @@ importers:
       '@studio-os/media-synth':
         specifier: workspace:*
         version: link:../../packages/media-synth
+      '@studio-os/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       bullmq:
         specifier: ^5.34.5
         version: 5.81.5
@@ -605,6 +630,9 @@ importers:
       '@studio-os/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@studio-os/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@studio-os/timeline':
         specifier: workspace:*
         version: link:../../packages/timeline

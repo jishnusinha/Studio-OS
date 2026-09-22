@@ -38,8 +38,8 @@ export class GenerationQueueService implements OnModuleInit, OnModuleDestroy {
       endpoint: env.S3_ENDPOINT,
       forcePathStyle: env.S3_FORCE_PATH_STYLE,
       credentials: {
-        accessKeyId: env.S3_ACCESS_KEY,
-        secretAccessKey: env.S3_SECRET_KEY,
+        accessKeyId: env.S3_ACCESS_KEY ?? 'local',
+        secretAccessKey: env.S3_SECRET_KEY ?? 'local',
       },
     });
   }

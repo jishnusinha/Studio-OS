@@ -32,6 +32,7 @@
     "@studio-os/provenance": "workspace:*",
     "@studio-os/providers": "workspace:*",
     "@studio-os/script-parse": "workspace:*",
+    "@studio-os/storage": "workspace:*",
     "@studio-os/timeline": "workspace:*",
     "@studio-os/workflow": "workspace:*",
     "bcryptjs": "^2.4.3",

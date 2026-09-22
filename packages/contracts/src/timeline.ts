@@ -36,11 +36,33 @@ export const ClipSchema = z.object({
   timelineStart: z.number().nonnegative(),
   transform: TransformSchema.default({}),
   speed: z.number().positive().default(1),
+  reverse: z.boolean().default(false).optional(),
   effects: z.array(EffectSchema).default([]),
   keyframes: z.array(KeyframeSchema).default([]),
   linkedAudioClipId: z.string().uuid().nullable().optional(),
   muted: z.boolean().default(false),
   label: z.string().optional(),
+  /** Outgoing transition into the next clip (or black). */
+  transitionOut: z
+    .object({
+      type: z.enum(['dissolve', 'fade_black', 'wipe']).default('dissolve'),
+      duration: z.number().positive().default(0.5),
+    })
+    .optional()
+    .nullable(),
+  /** Title/caption payload when on a title track (assetId may be nil UUID). */
+  title: z
+    .object({
+      text: z.string(),
+      fontSize: z.number().positive().default(48),
+      color: z.string().default('#ffffff'),
+      x: z.number().default(0.5),
+      y: z.number().default(0.85),
+      align: z.enum(['left', 'center', 'right']).default('center'),
+      preset: z.enum(['lower_third', 'center', 'caption']).default('lower_third').optional(),
+    })
+    .optional()
+    .nullable(),
 });
 export type Clip = z.infer<typeof ClipSchema>;
 
@@ -100,6 +122,14 @@ export const TimelineCommandTypeSchema = z.enum([
   'set_clip_audio',
   'set_multicam_angle',
   'add_mask',
+  'set_transition',
+  'clear_transition',
+  'set_clip_speed',
+  'set_title',
+  'slip_clip',
+  'slide_clip',
+  'roll_edit',
+  'auto_duck',
   'batch',
 ]);
 export type TimelineCommandType = z.infer<typeof TimelineCommandTypeSchema>;

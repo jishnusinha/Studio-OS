@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Spinner, Panel } from '@studio-os/ui';
 import { assetsApi, type AssetDto } from '@/lib/api';
+import { StorageModeChip } from '@/components/editor/StorageModeChip';
 import { useStudioStore } from '@/lib/store';
 
 const FACET_KEYS = ['type', 'character', 'scene', 'status', 'model', 'source', 'rating'] as const;
@@ -30,8 +31,24 @@ function uniqueValues(assets: AssetDto[], key: FacetKey): string[] {
 export default function AssetsPage() {
   const params = useParams<{ id: string }>();
   const setSelection = useStudioStore((s) => s.setSelection);
+  const queryClient = useQueryClient();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [facets, setFacets] = useState<Partial<Record<FacetKey, string>>>({});
   const [hoverId, setHoverId] = useState<string | null>(null);
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => {
+      const type = file.type.startsWith('audio/')
+        ? 'audio'
+        : file.type.startsWith('image/')
+          ? 'image'
+          : file.type.startsWith('video/')
+            ? 'video'
+            : 'other';
+      return assetsApi.uploadFile(params.id, file, type);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['assets', params.id] }),
+  });
 
   const allQuery = useQuery({
     queryKey: ['assets', params.id],
@@ -86,7 +103,29 @@ export default function AssetsPage() {
           </div>
           <h1 className="text-[16px] font-semibold">Assets</h1>
         </div>
-        <Badge tone="neutral">{assets.length} items</Badge>
+        <div className="flex items-center gap-2">
+          <StorageModeChip />
+          <button
+            type="button"
+            className="text-[12px] px-3 py-1.5 rounded border border-cinema-accent text-cinema-accent disabled:opacity-40"
+            disabled={uploadMutation.isPending}
+            onClick={() => inputRef.current?.click()}
+          >
+            {uploadMutation.isPending ? 'Uploading…' : 'Import media'}
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="video/*,audio/*,image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadMutation.mutate(f);
+              e.target.value = '';
+            }}
+          />
+          <Badge tone="neutral">{assets.length} items</Badge>
+        </div>
       </div>
 
       <div className="p-4 grid lg:grid-cols-[220px_1fr] gap-4">

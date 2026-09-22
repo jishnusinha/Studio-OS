@@ -17,6 +17,7 @@ import {
   timelines,
   type Database,
 } from '@studio-os/db';
+import type { StorageBackend } from '@studio-os/storage';
 import {
   TimelineEngine,
   buildGenerateIntoGapContext,
@@ -25,10 +26,13 @@ import {
 } from '@studio-os/timeline';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+import { promises as fs } from 'node:fs';
+import { join } from 'node:path';
 import { z } from 'zod';
 import { DB } from '../db/db.tokens.js';
 import { GenerationService } from '../generation/generation.service.js';
 import { RenderQueueService } from '../queue/render-queue.service.js';
+import { STORAGE } from '../storage/storage.module.js';
 
 const CreateTimelineSchema = z.object({
   name: z.string().min(1).max(300),
@@ -97,6 +101,16 @@ function emptyTimelineData(partial: {
         locked: false,
         solo: false,
         height: 40,
+        clips: [],
+      },
+      {
+        id: randomUUID(),
+        type: 'title',
+        name: 'T1',
+        muted: false,
+        locked: false,
+        solo: false,
+        height: 36,
         clips: [],
       },
     ],
@@ -207,6 +221,7 @@ function persistPayload(timeline: Timeline, history: TimelineHistory): Record<st
 export class TimelineService {
   constructor(
     @Inject(DB) private readonly db: Database,
+    @Inject(STORAGE) private readonly storage: StorageBackend,
     @Optional() private readonly generation?: GenerationService,
     @Optional() private readonly renderQueue?: RenderQueueService,
   ) {}
@@ -433,6 +448,63 @@ export class TimelineService {
     }
 
     return deliverable;
+  }
+
+  async previewFrame(id: string, t: number, width?: number, height?: number) {
+    const [row] = await this.db.select().from(timelines).where(eq(timelines.id, id)).limit(1);
+    if (!row) throw new NotFoundException('Timeline not found');
+    const timeline = asTimeline(row);
+
+    const assetIds = new Set<string>();
+    for (const track of timeline.tracks) {
+      for (const clip of track.clips) {
+        if (clip.assetId) assetIds.add(clip.assetId);
+      }
+    }
+
+    const workDir = join(process.cwd(), '.tmp', 'preview', id);
+    await fs.mkdir(workDir, { recursive: true });
+    const assetPathMap: Record<string, string> = {};
+
+    if (assetIds.size > 0) {
+      const versions = await this.db
+        .select()
+        .from(assetVersions)
+        .where(inArray(assetVersions.assetId, [...assetIds]))
+        .orderBy(desc(assetVersions.version));
+      const seen = new Set<string>();
+      for (const v of versions) {
+        if (seen.has(v.assetId)) continue;
+        seen.add(v.assetId);
+        const key = v.proxyKey || v.storageKey;
+        const dest = join(workDir, `asset-${v.assetId}`);
+        try {
+          const direct = this.storage.localPath?.(key);
+          if (direct) assetPathMap[v.assetId] = direct;
+          else {
+            await this.storage.materialize(key, dest);
+            assetPathMap[v.assetId] = dest;
+          }
+        } catch {
+          /* skip missing */
+        }
+      }
+    }
+
+    const outPath = join(workDir, `frame-${Math.round(t * 1000)}.jpg`);
+    try {
+      const mod = await import('@studio-os/render-worker');
+      const result = await mod.renderPreviewFrame(timeline, assetPathMap, t, outPath, {
+        width: width ?? 960,
+        height,
+      });
+      const buf = await fs.readFile(result.outputPath);
+      return { buffer: buf, contentType: 'image/jpeg', mock: result.mock };
+    } catch (err) {
+      throw new BadRequestException(
+        `Preview failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   async generateIntoGap(id: string, trackId: string, body: unknown, userId?: string) {

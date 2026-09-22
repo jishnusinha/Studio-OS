@@ -27,10 +27,14 @@ import { CollabModule } from './collab/collab.module.js';
 import { ProvenanceModule } from './provenance/provenance.module.js';
 import { GpuModule } from './gpu/gpu.module.js';
 import { HealthController } from './health.controller.js';
+import { StorageModule } from './storage/storage.module.js';
+import { MediaLocalController } from './storage/media-local.controller.js';
+import { SystemController } from './storage/system.controller.js';
 
 @Module({
   imports: [
     EnvModule,
+    StorageModule,
     DbModule,
     CommonModule,
     AuthModule,
@@ -58,6 +62,6 @@ import { HealthController } from './health.controller.js';
     ProvenanceModule,
     GpuModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, MediaLocalController, SystemController],
 })
 export class AppModule {}

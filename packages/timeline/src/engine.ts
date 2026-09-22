@@ -347,6 +347,147 @@ function applySingle(timeline: Timeline, command: TimelineCommand): Timeline {
       return updateTrackClips(timeline, found.trackIndex, clips);
     }
 
+    case 'set_transition': {
+      const clipId = payload.clipId as string;
+      const found = findClip(timeline, clipId);
+      if (!found) return timeline;
+      const transitionOut = {
+        type: (payload.type as 'dissolve' | 'fade_black' | 'wipe') ?? 'dissolve',
+        duration: Number(payload.duration ?? 0.5),
+      };
+      const track = timeline.tracks[found.trackIndex]!;
+      const clips = track.clips.map((c) =>
+        c.id === clipId ? { ...c, transitionOut } : c,
+      );
+      return updateTrackClips(timeline, found.trackIndex, clips);
+    }
+
+    case 'clear_transition': {
+      const clipId = payload.clipId as string;
+      const found = findClip(timeline, clipId);
+      if (!found) return timeline;
+      const track = timeline.tracks[found.trackIndex]!;
+      const clips = track.clips.map((c) =>
+        c.id === clipId ? { ...c, transitionOut: null } : c,
+      );
+      return updateTrackClips(timeline, found.trackIndex, clips);
+    }
+
+    case 'set_clip_speed': {
+      const clipId = payload.clipId as string;
+      const found = findClip(timeline, clipId);
+      if (!found) return timeline;
+      const speed = Math.max(0.05, Number(payload.speed ?? found.clip.speed ?? 1));
+      const reverse = Boolean(payload.reverse ?? found.clip.reverse ?? false);
+      const track = timeline.tracks[found.trackIndex]!;
+      const clips = track.clips.map((c) =>
+        c.id === clipId ? { ...c, speed, reverse } : c,
+      );
+      return updateTrackClips(timeline, found.trackIndex, clips);
+    }
+
+    case 'set_title': {
+      const clipId = payload.clipId as string;
+      const found = findClip(timeline, clipId);
+      if (!found) return timeline;
+      const title = {
+        text: String(payload.text ?? found.clip.title?.text ?? ''),
+        fontSize: Number(payload.fontSize ?? found.clip.title?.fontSize ?? 48),
+        color: String(payload.color ?? found.clip.title?.color ?? '#ffffff'),
+        x: Number(payload.x ?? found.clip.title?.x ?? 0.5),
+        y: Number(payload.y ?? found.clip.title?.y ?? 0.85),
+        align: (payload.align as 'left' | 'center' | 'right') ?? found.clip.title?.align ?? 'center',
+        preset:
+          (payload.preset as 'lower_third' | 'center' | 'caption' | undefined) ??
+          found.clip.title?.preset ??
+          'lower_third',
+      };
+      const track = timeline.tracks[found.trackIndex]!;
+      const clips = track.clips.map((c) =>
+        c.id === clipId ? { ...c, title, label: title.text.slice(0, 40) } : c,
+      );
+      return updateTrackClips(timeline, found.trackIndex, clips);
+    }
+
+    case 'slip_clip': {
+      const clipId = payload.clipId as string;
+      const delta = Number(payload.delta ?? 0);
+      const found = findClip(timeline, clipId);
+      if (!found) return timeline;
+      const track = timeline.tracks[found.trackIndex]!;
+      const clips = track.clips.map((c) => {
+        if (c.id !== clipId) return c;
+        const dur = c.sourceOut - c.sourceIn;
+        const sourceIn = Math.max(0, c.sourceIn + delta);
+        return { ...c, sourceIn, sourceOut: sourceIn + dur };
+      });
+      return updateTrackClips(timeline, found.trackIndex, clips);
+    }
+
+    case 'slide_clip': {
+      const clipId = payload.clipId as string;
+      const delta = Number(payload.delta ?? 0);
+      const found = findClip(timeline, clipId);
+      if (!found) return timeline;
+      const track = timeline.tracks[found.trackIndex]!;
+      const clips = track.clips.map((c) =>
+        c.id === clipId ? { ...c, timelineStart: Math.max(0, c.timelineStart + delta) } : c,
+      );
+      return updateTrackClips(timeline, found.trackIndex, clips);
+    }
+
+    case 'roll_edit': {
+      const leftClipId = payload.leftClipId as string;
+      const rightClipId = payload.rightClipId as string;
+      const delta = Number(payload.delta ?? 0);
+      const left = findClip(timeline, leftClipId);
+      const right = findClip(timeline, rightClipId);
+      if (!left || !right || left.trackIndex !== right.trackIndex) return timeline;
+      const track = timeline.tracks[left.trackIndex]!;
+      const clips = track.clips.map((c) => {
+        if (c.id === leftClipId) {
+          return { ...c, sourceOut: Math.max(c.sourceIn + 0.05, c.sourceOut + delta) };
+        }
+        if (c.id === rightClipId) {
+          return {
+            ...c,
+            sourceIn: Math.max(0, c.sourceIn + delta),
+            timelineStart: Math.max(0, c.timelineStart + delta),
+          };
+        }
+        return c;
+      });
+      return updateTrackClips(timeline, left.trackIndex, clips);
+    }
+
+    case 'auto_duck': {
+      const dialogueTrackId = payload.dialogueTrackId as string;
+      const musicTrackId = payload.musicTrackId as string;
+      const duckTo = Number(payload.duckTo ?? 0.25);
+      const musicIndex = findTrackIndex(timeline, musicTrackId);
+      const dialogueIndex = findTrackIndex(timeline, dialogueTrackId);
+      if (musicIndex < 0 || dialogueIndex < 0) return timeline;
+      const dialogue = timeline.tracks[dialogueIndex]!;
+      const music = timeline.tracks[musicIndex]!;
+      const clips = music.clips.map((c) => {
+        const overlaps = dialogue.clips.some((d) => {
+          const dEnd = d.timelineStart + clipDuration(d);
+          const cEnd = c.timelineStart + clipDuration(c);
+          return d.timelineStart < cEnd && c.timelineStart < dEnd;
+        });
+        if (!overlaps) return c;
+        const effectId = c.effects.find((e) => e.type === 'audio_gain')?.id ?? crypto.randomUUID();
+        return {
+          ...c,
+          effects: [
+            ...c.effects.filter((e) => e.type !== 'audio_gain'),
+            { id: effectId, type: 'audio_gain', enabled: true, parameters: { volume: duckTo } },
+          ],
+        };
+      });
+      return updateTrackClips(timeline, musicIndex, clips);
+    }
+
     case 'batch': {
       const commands = (payload.commands as TimelineCommand[] | undefined) ?? [];
       let next = timeline;

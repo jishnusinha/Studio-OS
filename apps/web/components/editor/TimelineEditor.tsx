@@ -313,6 +313,33 @@ export function TimelineEditor({
     await timelinesApi.generateGap(timelineId, track.id, { gapIndex: 0 });
   };
 
+  // NLE hotkeys: J/K/L, I/O markers, S blade, Delete ripple
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+      if (e.key === 'j' || e.key === 'J') setPlayhead((t) => Math.max(0, t - 1 / (timeline?.fps ?? 24)));
+      if (e.key === 'l' || e.key === 'L') setPlayhead((t) => t + 1 / (timeline?.fps ?? 24));
+      if (e.key === 'k' || e.key === 'K') {/* pause placeholder */}
+      if (e.key === 's' || e.key === 'S') setTool('blade');
+      if (e.key === 'i' || e.key === 'I') {
+        send(makeCommand('add_marker', { marker: { id: crypto.randomUUID(), time: playhead, label: 'In', color: '#6ee7b7' } }));
+      }
+      if (e.key === 'o' || e.key === 'O') {
+        send(makeCommand('add_marker', { marker: { id: crypto.randomUUID(), time: playhead, label: 'Out', color: '#fbbf24' } }));
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedClipId) {
+          e.preventDefault();
+          send(makeCommand('ripple_delete', { clipId: selectedClipId }));
+          setSelectedClipId(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [timeline?.fps, playhead, selectedClipId, send]);
+
   const height = compact ? 148 : 220;
 
   if (!projectId) {
